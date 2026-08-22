@@ -1,0 +1,16 @@
+{
+  "_settings": {
+    "81457b0d-e5f7-45ca-885f-6f8f184a459f": {
+      "version": "1.0.0",
+      "description": "Singleton JsonDb Configuration",
+      "_id": "81457b0d-e5f7-45ca-885f-6f8f184a459f"
+    }
+  },
+  "projects": {
+    "ce89a9c0-1442-455a-afe9-3a2e87c879eb": {
+      "path": "/home/byoso/Misc/Github_Projects/Markdown studio/test_project",
+      "name": "test_project",
+      "_id": "ce89a9c0-1442-455a-afe9-3a2e87c879eb"
+    }
+  }
+}

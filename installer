@@ -1,0 +1,254 @@
+#! /usr/bin/env python3
+
+"""
+This fast installer is destined to the developpers who want to create
+their own quick installer, with 'geninstaller' (https://github.com/byoso/geninstaller).
+Just read the comments and complete the informations asked below,
+the magic will do the rest.
+
+IMPORTANT:
+Geninstaller only installs applications in the user's space, it does not
+access to the system files. Therefore, each installation is relative
+to one user of the computer. It is possible to install the application
+on multiple sessions, but each application installed will remain totally
+independent.
+
+"""
+
+# =========== THERE WE GO ===================================
+
+# PLACE THIS FILE IN THE ROOT DIRECTORY OF YOUR PROJECT
+
+# =====================================================================
+# ======= Complete this informations ==================================
+
+# choose a good name, do NOT use underscores here
+NAME = "Markdown Studio"
+# short description (optional), a few words would be fine
+DESCRIPTION = "Edit MD and export to pdf or HTML"
+# The main executable file of the application
+# The path is relative to this directory (BASE_DIR defined below)
+EXECUTABLE = "main.py"
+# The icon that your system will use (optional, but so much better)
+# The path is relative to this directory (BASE_DIR defined below)
+ICON = "icon.png"
+# Does your application needs to appear within a terminal ?
+# (usually, a graphical application doesn't need a terminal)
+TERMINAL = False
+
+# Just uncomment the categories in which you want your app to appear in (optional).
+# If you need to know more (expert), read this:
+# freedesktop.org doc for categories
+# https://specifications.freedesktop.org/menu-spec/latest/apa.html#main-category-registry
+# additionnal categories
+# https://specifications.freedesktop.org/menu-spec/latest/apas02.html
+CATEGORIES = [
+    # "AudioVideo",
+    # "Audio",
+    # "Video",
+    "Development",
+    # "Education",
+    # "Game",
+    # "Graphics",
+    # "Network",
+    "Office",
+    # "Science",
+    # "Settings",
+    # "System",
+    # "Utility",
+]
+
+# PYTHON OPTIONS
+# if ABSOLUTELLY NEEDED, specify the required python version for your app
+# !! LIMITATION: your program will lose access to system packages like gi.repository for sure !!
+python_required_version = ""  # e.g. "3.11"
+# if your app needs python dependencies, list here the requirements files
+# your program will be installed in a virtual environment with these dependencies
+python_dependencies = ["requirements.txt"]  # e.g. ["requirements.txt"]
+
+# ADDITIONAL OPTIONS
+exec_options = ""  # if the exec needs additional options
+
+# if more parameters are needed in the .desktop file, fill this list
+# with the lines you want. e.g: ["foo=bar", "truc=machin"]
+options = [
+    "Keywords=geninstaller,markdown;",
+]
+
+# optional pre installation/uninstallation script files (e.g. "scripts/pre_install.sh")
+pre_install_script = ""
+post_install_script = ""
+pre_uninstall_script = ""
+
+# you're done ! :)
+
+# = do not touch what is following unless you know what you're doing ==
+# =====================================================================
+
+
+import os
+from packaging.version import Version
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+
+# geninstaller version check
+############################
+
+# geninstaller_min_required_version = "1.0.0"  # dev
+geninstaller_min_required_version = "2.2.0"  # prod
+
+def version_from_string(v: str) -> tuple:
+    return tuple(map(int, (v.split("."))))
+
+def required_version(v1: str, min: str, max: str) -> bool:
+    """Compares two version strings.
+    Returns True if min <= v1 < max, else False."""
+    current_version = version_from_string(v1)
+    min_version = version_from_string(min)
+    max_version = version_from_string(max)
+    return current_version >= min_version and current_version < max_version
+
+def installed_pythons():
+    pythons = {}
+    for path in Path("/usr/bin").glob("python*"):
+        if not path.is_file() or not path.stat().st_mode & 0o111:
+            continue
+        try:
+            out = subprocess.check_output(
+                [str(path), "--version"],
+                stderr=subprocess.STDOUT,
+                text=True,
+                timeout=1,
+            )
+        except Exception:
+            continue
+        m = re.search(r"Python (\d+\.\d+\.\d+)", out)
+        if m:
+            pythons[str(path)] = Version(m.group(1))
+    return pythons
+
+def select_python(requested: str) -> str | None:
+    requested_v = Version(requested)
+    precision = len(requested.split("."))
+    pythons = installed_pythons()
+    candidates = []
+    # 1) First pass: same major.minor
+    for path, version in pythons.items():
+        if (
+            version.major == requested_v.major
+            and version.minor == requested_v.minor
+        ):
+            # If patch was specified, ensure version >= requested
+            if precision >= 3 and version < requested_v:
+                continue
+            candidates.append((path, version))
+    if candidates:
+        return min(candidates, key=lambda x: x[1])[0]
+    # 2) Fallback: higher minor in same major
+    for path, version in pythons.items():
+        if (
+            version.major == requested_v.major
+            and version.minor > requested_v.minor
+        ):
+            candidates.append((path, version))
+    if candidates:
+        return min(candidates, key=lambda x: x[1])[0]
+    # 3) Nothing acceptable
+    return None
+
+install_geninstaller_message = f"""
+!! ABORTED !!
+Geninstaller >= {geninstaller_min_required_version} must be installed with pipx before running this installer:
+"""
+install_geninstaller_message_pipx = f"""
+# INSTALLING pipx:
+Ubuntu / Debian             sudo apt install pipx ou pip install --user pipx
+Fedora / RHEL / CentOS      sudo dnf install pipx
+Arch / Manjaro              sudo pacman -S pipx
+openSUSE                    sudo zypper install pipx
+"""
+install_geninstaller_messge_geninstaller = f"""
+# INSTALLING geninstaller with pipx:
+$ pipx install geninstaller
+"""
+python_required_version_missing_message = f"""
+!! Aborted !! '{NAME}' requires python >= {python_required_version},
+no matching python version found on your system, consider installing
+a more recent version before installing this application.
+"""
+
+
+# Checking requirements
+#########################
+# checking python version if needed
+python_version = ""
+if python_required_version:
+    python_version = select_python(python_required_version)
+    if not python_version:
+        print(python_required_version_missing_message)
+        exit(0)
+
+try:
+    installed_pipx = subprocess.run(
+        ["pipx", "list", "--short"],
+        capture_output=True,
+        text=True,
+        check=False
+    )
+except FileNotFoundError:
+    message = install_geninstaller_message + install_geninstaller_message_pipx + install_geninstaller_messge_geninstaller
+    print(message)
+    exit(0)
+installed_list = installed_pipx.stdout.strip().splitlines()
+installed_tools = {i: j for i, j in (item.split() for item in installed_list)}
+
+# this check only works with python 3.12 and above due to pipx issues with older versions
+import sys
+MIN_PYTHON = (3, 12)
+if sys.version_info >= MIN_PYTHON:
+    if not "geninstaller" in installed_tools or not required_version(installed_tools["geninstaller"], geninstaller_min_required_version, "3.0.0"):
+        message = install_geninstaller_message + install_geninstaller_messge_geninstaller
+        print(message)
+        exit(0)
+else:
+    print(f"WARNING: Your version of python is {sys.version_info.major}.{sys.version_info.minor}, to ancient to run some pipx verifications, install continues anyway...")
+
+
+# Installation with geninstaller
+################################
+
+this_file = os.path.basename(__file__)
+
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+def install() -> None:
+    """installs the application with geninstaller"""
+    # building the query parameters
+    options_formated = [opt.replace("=", "<eq>") for opt in options]  # avoid issues with bash
+    query_params = f'?name="{NAME}"+exec="{EXECUTABLE}"+description="{DESCRIPTION}"+' \
+        f'terminal="{TERMINAL}"+icon="{ICON}"+categories="{";".join(CATEGORIES)}"+' \
+        f'base_dir="{BASE_DIR}"+exec_options="{exec_options}"+options="{";".join(options_formated)}"+' \
+        f'pre_install_script="{pre_install_script}"+post_install_script="{post_install_script}"+' \
+        f'pre_uninstall_script="{pre_uninstall_script}+' \
+        f'python_required_version="{python_version}"+' \
+        f'python_dependencies="{";".join(python_dependencies)}"'
+    try:
+        subprocess.run(
+            ["geninstaller", "_install", query_params],  # prod
+            # ["python", "-m", "geninstaller.cmd", "_install", query_params],  # dev
+            check=True
+        )
+    except Exception as e:
+        print(f"Installation failed: {e}")
+        exit(1)
+
+def main() -> None:
+    install()
+
+
+if __name__ == "__main__":
+    main()

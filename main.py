@@ -5,13 +5,15 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk as gtk
 
+from markdown_studio.app_db import AppDatabase
 from markdown_studio.window import MainWindow
 
 
-def choose_project_folder():
+def choose_new_project_folder(parent=None):
     dialog = gtk.FileChooserDialog(
         title="Open or create a project folder",
         action=gtk.FileChooserAction.SELECT_FOLDER,
+        transient_for=parent,
     )
     dialog.add_buttons(gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL, "Select", gtk.ResponseType.OK)
     response = dialog.run()
@@ -20,8 +22,60 @@ def choose_project_folder():
     return folder if response == gtk.ResponseType.OK else None
 
 
+def choose_project(app_db):
+    """Let the user pick a known project, or browse for a new/existing one."""
+    dialog = gtk.Dialog(title="Open a Markdown Studio project")
+    dialog.set_default_size(420, 320)
+    dialog.add_buttons(
+        gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL,
+        "Browse...", gtk.ResponseType.APPLY,
+        "Open", gtk.ResponseType.OK,
+    )
+    dialog.set_default_response(gtk.ResponseType.OK)
+
+    content = dialog.get_content_area()
+    content.set_spacing(6)
+    content.set_border_width(12)
+    content.add(gtk.Label(label="Known projects:", xalign=0))
+
+    list_box = gtk.ListBox()
+    list_box.set_selection_mode(gtk.SelectionMode.SINGLE)
+    for project in app_db.list_projects():
+        row = gtk.ListBoxRow()
+        box = gtk.Box(orientation=gtk.Orientation.VERTICAL)
+        box.pack_start(gtk.Label(label=project["name"], xalign=0), False, False, 2)
+        box.pack_start(gtk.Label(label=project["path"], xalign=0), False, False, 2)
+        row.add(box)
+        row.project_path = project["path"]
+        list_box.add(row)
+    list_box.connect("row-activated", lambda _lb, _row: dialog.response(gtk.ResponseType.OK))
+
+    scroll = gtk.ScrolledWindow()
+    scroll.set_min_content_height(200)
+    scroll.add(list_box)
+    content.add(scroll)
+
+    dialog.show_all()
+
+    selected_path = None
+    response = dialog.run()
+    if response == gtk.ResponseType.OK:
+        row = list_box.get_selected_row()
+        if row is not None:
+            selected_path = row.project_path
+    elif response == gtk.ResponseType.APPLY:
+        new_path = choose_new_project_folder(dialog)
+        if new_path:
+            app_db.add_project(new_path)
+            selected_path = new_path
+
+    dialog.destroy()
+    return selected_path
+
+
 def main():
-    project_path = choose_project_folder()
+    app_db = AppDatabase()
+    project_path = choose_project(app_db)
     if not project_path:
         return
 
