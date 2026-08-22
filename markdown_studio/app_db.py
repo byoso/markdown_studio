@@ -33,3 +33,12 @@ class AppDatabase:
             if item.data.get("path") == path_str:
                 return
         collection.insert({"path": path_str, "name": Path(path_str).name})
+
+    def remove_project(self, path: str | Path) -> None:
+        """Remove a project from the known-projects list without touching its folder."""
+        path_str = str(Path(path))
+        collection = self.db.collection(self.PROJECTS_COLLECTION)
+        for item in collection.all():
+            if item.data.get("path") == path_str:
+                item.delete()
+                return

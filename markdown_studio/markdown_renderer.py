@@ -8,6 +8,7 @@ def render_html(markdown_text: str, css_href: str | None = None, margin_mm: int 
     body = markdown.markdown(markdown_text, extensions=["extra", "sane_lists"])
     page_style = f"<style>@page {{ margin: {margin_mm}mm; }}</style>"
     css_link = f'<link rel="stylesheet" href="{css_href}">' if css_href else ""
+    image_style = "<style>img { max-width: 100%; height: auto; }</style>"
     scroll_state_script = """
 <script>
 (function () {
@@ -80,7 +81,7 @@ def render_html(markdown_text: str, css_href: str | None = None, margin_mm: int 
 """
     return f"""<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8">{page_style}{css_link}{scroll_state_script}</head>
+<head><meta charset="utf-8">{page_style}{css_link}{image_style}{scroll_state_script}</head>
 <body>
 {body}
 </body>

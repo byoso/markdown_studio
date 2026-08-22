@@ -23,6 +23,24 @@ def choose_new_project_folder(parent=None):
     return folder if response == gtk.ResponseType.OK else None
 
 
+def _remove_known_project(app_db, parent, list_box, row):
+    dialog = gtk.MessageDialog(
+        transient_for=parent,
+        modal=True,
+        message_type=gtk.MessageType.QUESTION,
+        buttons=gtk.ButtonsType.CANCEL,
+        text="Remove this project from the list?",
+    )
+    dialog.add_button("Remove", gtk.ResponseType.OK)
+    dialog.format_secondary_text("The project folder and its files will not be deleted.")
+    response = dialog.run()
+    dialog.destroy()
+
+    if response == gtk.ResponseType.OK:
+        app_db.remove_project(row.project_path)
+        list_box.remove(row)
+
+
 def choose_project(app_db, parent=None):
     """Let the user pick a known project, or browse for a new/existing one."""
     dialog = gtk.Dialog(title="Open a Markdown Studio project", transient_for=parent)
@@ -43,9 +61,20 @@ def choose_project(app_db, parent=None):
     list_box.set_selection_mode(gtk.SelectionMode.SINGLE)
     for project in app_db.list_projects():
         row = gtk.ListBoxRow()
-        box = gtk.Box(orientation=gtk.Orientation.VERTICAL)
+        box = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=6)
         box.pack_start(gtk.Label(label=project["name"], xalign=0), False, False, 2)
-        box.pack_start(gtk.Label(label=project["path"], xalign=0), False, False, 2)
+
+        delete_button = gtk.Button()
+        delete_button.add(gtk.Image.new_from_icon_name("user-trash-symbolic", gtk.IconSize.BUTTON))
+        delete_button.set_relief(gtk.ReliefStyle.NONE)
+        delete_button.set_tooltip_text("Remove project from the list")
+        delete_button.connect(
+            "clicked",
+            lambda _button, current_row=row: _remove_known_project(
+                app_db, dialog, list_box, current_row,
+            ),
+        )
+        box.pack_end(delete_button, False, False, 2)
         row.add(box)
         row.project_path = project["path"]
         list_box.add(row)

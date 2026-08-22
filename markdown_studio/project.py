@@ -55,11 +55,16 @@ class Project:
 
         Files without a prefix are sorted last, alphabetically among themselves.
         """
-        files = [p for p in self.path.iterdir() if p.is_file() and p.suffix == ".md"]
+        files = [p for p in self.path.rglob("*.md") if p.is_file()]
 
         def sort_key(p: Path):
             prefix = parse_order_prefix(p.name)
-            return (prefix is None, prefix if prefix is not None else 0, p.name)
+            return (
+                prefix is None,
+                prefix if prefix is not None else 0,
+                p.name,
+                str(p.relative_to(self.path)),
+            )
 
         return sorted(files, key=sort_key)
 

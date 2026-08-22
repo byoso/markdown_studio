@@ -7,7 +7,7 @@ from pathlib import Path
 
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk as gtk, GObject
+from gi.repository import Gtk as gtk, Gdk, GObject
 
 from .project import parse_order_prefix, set_order_prefix
 
@@ -126,6 +126,10 @@ class FileTree(gtk.Box):
         rename_item.connect("activate", lambda _i: self._on_rename(target))
         menu.append(rename_item)
 
+        copy_name_item = gtk.MenuItem(label="Copy file name")
+        copy_name_item.connect("activate", lambda _i: self._copy_file_name(target))
+        menu.append(copy_name_item)
+
         delete_item = gtk.MenuItem(label="Delete")
         delete_item.connect("activate", lambda _i: self._on_delete(target))
         menu.append(delete_item)
@@ -133,6 +137,12 @@ class FileTree(gtk.Box):
         menu.show_all()
         menu.popup_at_pointer(event)
         return True
+
+    @staticmethod
+    def _copy_file_name(target: Path) -> None:
+        clipboard = gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        clipboard.set_text(target.name, -1)
+        clipboard.store()
 
     def _on_rename(self, target: Path) -> None:
         dialog = gtk.Dialog(title="Rename", transient_for=self.get_toplevel(), flags=0)
