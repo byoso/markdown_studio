@@ -18,10 +18,11 @@ from .project import Project, parse_order_prefix, set_order_prefix
 
 
 class MainWindow(gtk.Window):
-    def __init__(self, project_path: str | Path):
+    def __init__(self, project_path: str | Path, on_change_project=None):
         super().__init__(title="Markdown Studio")
         self.set_icon_from_file(str(Path(__file__).parent.parent / "icon.png"))
         self.set_default_size(900, 600)
+        self.on_change_project = on_change_project
         self.project = Project.load(project_path)
 
         self._load_app_css()
@@ -92,6 +93,15 @@ class MainWindow(gtk.Window):
 
         self.connect("key-press-event", self._on_key_press)
 
+    def change_project(self, project_path: str | Path) -> None:
+        self.project = Project.load(project_path)
+        self.file_tree.set_root_path(self.project.path)
+        self.editor.current_path = None
+        self.editor.buffer.set_text("")
+        self.editor.set_font_size(self.project.get_font_size())
+        self.subtitle_label.set_text(self._header_subtitle())
+        self._refresh_preview()
+
     @staticmethod
     def _load_app_css() -> None:
         provider = gtk.CssProvider()
@@ -129,6 +139,11 @@ class MainWindow(gtk.Window):
         project_button.connect("clicked", lambda _b: self._open_folder(self.project.path))
         self.header_bar.pack_start(project_button)
 
+        if self.on_change_project is not None:
+            change_project_button = self._make_folder_button("Change project", "document-open-symbolic")
+            change_project_button.connect("clicked", lambda _b: self.on_change_project())
+            self.header_bar.pack_end(change_project_button)
+
         exports_button = self._make_folder_button("Exports")
         exports_button.connect("clicked", lambda _b: self._open_folder(self.project.get_exports_dir()))
         self.header_bar.pack_start(exports_button)
@@ -153,9 +168,9 @@ class MainWindow(gtk.Window):
         return False
 
     @staticmethod
-    def _make_folder_button(label_text: str) -> gtk.Button:
+    def _make_folder_button(label_text: str, icon_name: str = "folder-symbolic") -> gtk.Button:
         box = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=4)
-        box.pack_start(gtk.Image.new_from_icon_name("folder-symbolic", gtk.IconSize.BUTTON), False, False, 0)
+        box.pack_start(gtk.Image.new_from_icon_name(icon_name, gtk.IconSize.BUTTON), False, False, 0)
         box.pack_start(gtk.Label(label=label_text), False, False, 0)
         button = gtk.Button()
         button.add(box)
@@ -217,8 +232,15 @@ class MainWindow(gtk.Window):
         css_box = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=4)
         css_label = gtk.Label(label=self._css_label_text())
         css_button = gtk.Button(label="Choose CSS file")
-        css_button.connect("clicked", lambda _b: self._on_choose_css_clicked(dialog, css_label))
+        remove_css_button = gtk.Button(label="Remove CSS file")
+        remove_css_button.set_sensitive(self.project.get_css_relative_path() is not None)
+        css_button.connect(
+            "clicked",
+            lambda _b: self._on_choose_css_clicked(dialog, css_label, remove_css_button),
+        )
+        remove_css_button.connect("clicked", lambda _b: self._on_remove_css_clicked(css_label, remove_css_button))
         css_box.pack_start(css_button, False, False, 0)
+        css_box.pack_start(remove_css_button, False, False, 0)
         css_box.pack_start(css_label, False, False, 0)
         content.add(css_box)
 
@@ -245,10 +267,11 @@ class MainWindow(gtk.Window):
             self._refresh_preview()
         dialog.destroy()
 
-    def _on_choose_css_clicked(self, parent, css_label: gtk.Label) -> None:
+    def _on_choose_css_clicked(self, parent, css_label: gtk.Label, remove_css_button: gtk.Button) -> None:
         dialog = gtk.FileChooserDialog(
             title="Choose a CSS file", transient_for=parent, action=gtk.FileChooserAction.OPEN,
         )
+        dialog.set_current_folder(str(self.project.path))
         dialog.add_buttons(gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL, gtk.STOCK_OPEN, gtk.ResponseType.OK)
         css_filter = gtk.FileFilter()
         css_filter.set_name("CSS files")
@@ -261,7 +284,14 @@ class MainWindow(gtk.Window):
         if response == gtk.ResponseType.OK and css_path:
             self.project.set_css_path(css_path)
             css_label.set_text(self._css_label_text())
+            remove_css_button.set_sensitive(True)
             self._refresh_preview()
+
+    def _on_remove_css_clicked(self, css_label: gtk.Label, remove_css_button: gtk.Button) -> None:
+        self.project.set_css_path(None)
+        css_label.set_text(self._css_label_text())
+        remove_css_button.set_sensitive(False)
+        self._refresh_preview()
 
     def _on_new_file_clicked(self, _button) -> None:
         dialog = gtk.Dialog(title="New markdown file", transient_for=self, flags=0)

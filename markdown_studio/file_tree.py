@@ -61,6 +61,10 @@ class FileTree(gtk.Box):
         self.store.clear()
         self._populate(self.root_path, None)
 
+    def set_root_path(self, root_path: str | Path) -> None:
+        self.root_path = Path(root_path)
+        self.refresh()
+
     def _populate(self, folder: Path, parent_iter) -> None:
         try:
             entries = sorted(folder.iterdir(), key=self._sort_key)

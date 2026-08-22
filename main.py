@@ -23,9 +23,9 @@ def choose_new_project_folder(parent=None):
     return folder if response == gtk.ResponseType.OK else None
 
 
-def choose_project(app_db):
+def choose_project(app_db, parent=None):
     """Let the user pick a known project, or browse for a new/existing one."""
-    dialog = gtk.Dialog(title="Open a Markdown Studio project")
+    dialog = gtk.Dialog(title="Open a Markdown Studio project", transient_for=parent)
     dialog.set_default_size(420, 320)
     dialog.add_buttons(
         gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL,
@@ -81,7 +81,16 @@ def main():
     if not project_path:
         return
 
-    window = MainWindow(project_path)
+    window = None
+
+    def change_project():
+        selected_path = choose_project(app_db, parent=window)
+        if not selected_path:
+            return
+
+        window.change_project(selected_path)
+
+    window = MainWindow(project_path, on_change_project=change_project)
     window.show_all()
     window.connect("delete-event", gtk.main_quit)
     gtk.main()
