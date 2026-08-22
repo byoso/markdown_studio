@@ -20,6 +20,7 @@ from .project import Project, parse_order_prefix, set_order_prefix
 class MainWindow(gtk.Window):
     def __init__(self, project_path: str | Path):
         super().__init__(title="Markdown Studio")
+        self.set_icon_from_file(str(Path(__file__).parent.parent / "icon.png"))
         self.set_default_size(900, 600)
         self.project = Project.load(project_path)
 

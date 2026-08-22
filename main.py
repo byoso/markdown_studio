@@ -4,6 +4,7 @@
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk as gtk
+from pathlib import Path
 
 from markdown_studio.app_db import AppDatabase
 from markdown_studio.window import MainWindow
@@ -74,6 +75,7 @@ def choose_project(app_db):
 
 
 def main():
+    gtk.Window.set_default_icon_from_file(str(Path(__file__).parent / "icon.png"))
     app_db = AppDatabase()
     project_path = choose_project(app_db)
     if not project_path:

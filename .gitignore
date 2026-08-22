@@ -1,4 +1,5 @@
 
 __pycache__/
+app_db.json
 .venv/
 test_project/
