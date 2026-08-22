@@ -7,7 +7,7 @@ from pathlib import Path
 
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk as gtk, Gdk, Gio
+from gi.repository import Gtk as gtk, Gdk, Gio, GLib
 
 from . import pdf_export
 from .editor import MarkdownEditor
@@ -23,6 +23,7 @@ class MainWindow(gtk.Window):
         self.set_default_size(900, 600)
         self.project = Project.load(project_path)
 
+        self._load_app_css()
         self.set_titlebar(self._build_header_bar())
 
         paned = gtk.Paned(orientation=gtk.Orientation.HORIZONTAL)
@@ -33,6 +34,7 @@ class MainWindow(gtk.Window):
         paned.pack1(left_box, resize=False, shrink=False)
 
         new_file_button = gtk.Button(label="New markdown file")
+        new_file_button.get_style_context().add_class("sidebar-button")
         new_file_button.connect("clicked", self._on_new_file_clicked)
         left_box.pack_start(new_file_button, False, False, 0)
 
@@ -45,12 +47,16 @@ class MainWindow(gtk.Window):
 
         editor_toolbar = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=4)
         save_button = gtk.Button(label="Save")
+        save_button.get_style_context().add_class("save-button")
         save_button.connect("clicked", self._on_save_clicked)
         export_file_button = gtk.Button(label="Export this file to PDF")
+        export_file_button.get_style_context().add_class("export-button")
         export_file_button.connect("clicked", self._on_export_file_clicked)
         export_project_button = gtk.Button(label="Export project to PDF")
+        export_project_button.get_style_context().add_class("export-button")
         export_project_button.connect("clicked", self._on_export_project_clicked)
-        export_madoc_button = gtk.Button(label="Export Madoc")
+        export_madoc_button = gtk.Button(label="Export HTML")
+        export_madoc_button.get_style_context().add_class("export-button")
         export_madoc_button.connect("clicked", self._on_export_madoc_clicked)
         editor_toolbar.pack_start(save_button, False, False, 0)
         editor_toolbar.pack_start(export_file_button, False, False, 0)
@@ -58,6 +64,7 @@ class MainWindow(gtk.Window):
         editor_toolbar.pack_start(export_madoc_button, False, False, 0)
 
         self.preview_toggle = gtk.ToggleButton()
+        self.preview_toggle.get_style_context().add_class("preview-toggle")
         self.preview_toggle.set_image(gtk.Image.new_from_icon_name("view-reveal-symbolic", gtk.IconSize.BUTTON))
         self.preview_toggle.set_tooltip_text("Toggle preview")
         self.preview_toggle.connect("toggled", self._on_toggle_preview)
@@ -70,6 +77,8 @@ class MainWindow(gtk.Window):
         right_box.pack_start(content_paned, True, True, 0)
 
         self.editor = MarkdownEditor()
+        self.editor.text_view.get_style_context().add_class("markdown-editor")
+        self.editor.set_font_size(self.project.get_font_size())
         content_paned.pack1(self.editor, resize=True, shrink=False)
 
         self.preview = PreviewPane()
@@ -82,11 +91,38 @@ class MainWindow(gtk.Window):
 
         self.connect("key-press-event", self._on_key_press)
 
+    @staticmethod
+    def _load_app_css() -> None:
+        provider = gtk.CssProvider()
+        provider.load_from_path(str(Path(__file__).parent / "style.css"))
+        gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(), provider, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
     def _build_header_bar(self) -> gtk.HeaderBar:
         self.header_bar = gtk.HeaderBar()
         self.header_bar.set_show_close_button(True)
-        self.header_bar.set_title("Markdown Studio")
-        self.header_bar.set_subtitle(self._header_subtitle())
+
+        title_stack = gtk.Box(orientation=gtk.Orientation.VERTICAL, spacing=0)
+        title_label = gtk.Label(label="Markdown Studio")
+        title_label.get_style_context().add_class("title")
+        self.subtitle_label = gtk.Label(label=self._header_subtitle())
+        self.subtitle_label.get_style_context().add_class("subtitle")
+        title_stack.pack_start(title_label, False, False, 0)
+        title_stack.pack_start(self.subtitle_label, False, False, 0)
+
+        title_box = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=6)
+        title_box.pack_start(title_stack, False, False, 0)
+
+        self.save_indicator = gtk.Image.new_from_icon_name("emblem-ok-symbolic", gtk.IconSize.BUTTON)
+        self.save_indicator.get_style_context().add_class("save-indicator")
+        self.save_indicator.set_no_show_all(True)
+        self.save_indicator.set_tooltip_text("Saved")
+        title_box.pack_start(self.save_indicator, False, False, 0)
+
+        title_box.show_all()
+        self.save_indicator.hide()
+        self.header_bar.set_custom_title(title_box)
 
         project_button = self._make_folder_button("Project")
         project_button.connect("clicked", lambda _b: self._open_folder(self.project.path))
@@ -107,6 +143,14 @@ class MainWindow(gtk.Window):
     def _header_subtitle(self) -> str:
         return self.project.get_title() or self.project.path.name
 
+    def _flash_save_indicator(self) -> None:
+        self.save_indicator.show()
+        GLib.timeout_add(1000, self._hide_save_indicator)
+
+    def _hide_save_indicator(self) -> bool:
+        self.save_indicator.hide()
+        return False
+
     @staticmethod
     def _make_folder_button(label_text: str) -> gtk.Button:
         box = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=4)
@@ -126,6 +170,7 @@ class MainWindow(gtk.Window):
 
     def _on_save_clicked(self, _button) -> None:
         self.editor.save()
+        self._flash_save_indicator()
 
     def _on_toggle_preview(self, button: gtk.ToggleButton) -> None:
         if button.get_active():
@@ -137,12 +182,17 @@ class MainWindow(gtk.Window):
     def _refresh_preview(self) -> None:
         if not self.preview_toggle.get_active():
             return
-        html = render_html(self.editor.get_text(), css_href=self.project.get_css_relative_path())
+        html = render_html(
+            self.editor.get_text(),
+            css_href=self.project.get_css_relative_path(),
+            margin_mm=self.project.get_pdf_margin_mm(),
+        )
         self.preview.load_html(html, self.project.path)
 
     def _on_key_press(self, _widget, event) -> bool:
         if event.keyval == Gdk.KEY_s and event.state & Gdk.ModifierType.CONTROL_MASK:
             self.editor.save()
+            self._flash_save_indicator()
             return True
         return False
 
@@ -171,11 +221,27 @@ class MainWindow(gtk.Window):
         css_box.pack_start(css_label, False, False, 0)
         content.add(css_box)
 
+        content.add(gtk.Label(label="Editor font size:", xalign=0))
+        font_size_spin = gtk.SpinButton.new_with_range(6, 48, 1)
+        font_size_spin.set_value(self.project.get_font_size())
+        content.add(font_size_spin)
+
+        content.add(gtk.Label(label="PDF export margin (mm):", xalign=0))
+        pdf_margin_spin = gtk.SpinButton.new_with_range(0, 50, 1)
+        pdf_margin_spin.set_value(self.project.get_pdf_margin_mm())
+        content.add(pdf_margin_spin)
+
         dialog.show_all()
         response = dialog.run()
         if response == gtk.ResponseType.OK:
             self.project.set_title(title_entry.get_text().strip() or None)
-            self.header_bar.set_subtitle(self._header_subtitle())
+            self.subtitle_label.set_text(self._header_subtitle())
+
+            self.project.set_font_size(font_size_spin.get_value_as_int())
+            self.editor.set_font_size(font_size_spin.get_value_as_int())
+
+            self.project.set_pdf_margin_mm(pdf_margin_spin.get_value_as_int())
+            self._refresh_preview()
         dialog.destroy()
 
     def _on_choose_css_clicked(self, parent, css_label: gtk.Label) -> None:
@@ -224,11 +290,13 @@ class MainWindow(gtk.Window):
 
         pdf_path = self.project.get_exports_dir() / self.editor.current_path.with_suffix(".pdf").name
         pdf_export.export_single(self.project, self.editor.current_path, pdf_path)
+        self._flash_save_indicator()
 
     def _on_export_project_clicked(self, _button) -> None:
         name = self._sanitize_filename(self.project.get_title() or self.project.path.name)
         pdf_path = self.project.get_exports_dir() / f"{name}.pdf"
         pdf_export.export_project(self.project, pdf_path)
+        self._flash_save_indicator()
 
     def _on_export_madoc_clicked(self, _button) -> None:
         css_rel = self.project.get_css_relative_path()
@@ -249,6 +317,7 @@ class MainWindow(gtk.Window):
         generated = self.project.path / "documentation.madoc.html"
         if generated.exists():
             generated.replace(self.project.get_exports_dir() / "index.html")
+        self._flash_save_indicator()
 
     def _show_error_dialog(self, title: str, message: str) -> None:
         dialog = gtk.MessageDialog(

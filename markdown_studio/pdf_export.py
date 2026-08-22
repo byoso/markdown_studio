@@ -13,7 +13,11 @@ def export_single(project: Project, md_path: str | Path, pdf_path: str | Path | 
     md_path = Path(md_path)
     pdf_path = Path(pdf_path) if pdf_path is not None else md_path.with_suffix(".pdf")
 
-    html = render_html(md_path.read_text(encoding="utf-8"), css_href=project.get_css_relative_path())
+    html = render_html(
+        md_path.read_text(encoding="utf-8"),
+        css_href=project.get_css_relative_path(),
+        margin_mm=project.get_pdf_margin_mm(),
+    )
     HTML(string=html, base_url=str(project.path)).write_pdf(str(pdf_path))
     return pdf_path
 
@@ -24,6 +28,10 @@ def export_project(project: Project, pdf_path: str | Path) -> Path:
         path.read_text(encoding="utf-8") for path in project.list_markdown_files()
     )
 
-    html = render_html(combined_markdown, css_href=project.get_css_relative_path())
+    html = render_html(
+        combined_markdown,
+        css_href=project.get_css_relative_path(),
+        margin_mm=project.get_pdf_margin_mm(),
+    )
     HTML(string=html, base_url=str(project.path)).write_pdf(str(pdf_path))
     return pdf_path

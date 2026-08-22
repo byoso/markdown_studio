@@ -2,6 +2,7 @@
 reordering .md files by swapping their (xxx) prefix with a neighbor."""
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import gi
@@ -47,7 +48,8 @@ class FileTree(gtk.Box):
         column.pack_start(text_renderer, True)
         column.add_attribute(text_renderer, "text", self.COL_NAME)
         self.tree_view.append_column(column)
-        self.tree_view.connect("row-activated", self._on_row_activated)
+        self.tree_view.get_selection().connect("changed", self._on_selection_changed)
+        self.tree_view.connect("button-press-event", self._on_button_press)
 
         scroll = gtk.ScrolledWindow()
         scroll.add(self.tree_view)
@@ -87,10 +89,10 @@ class FileTree(gtk.Box):
         is_dir = model[tree_iter][self.COL_IS_DIR]
         cell.set_property("icon-name", "folder" if is_dir else "text-x-generic")
 
-    def _on_row_activated(self, tree_view, path, column) -> None:
-        tree_iter = self.store.get_iter(path)
-        if not self.store[tree_iter][self.COL_IS_DIR]:
-            self.emit("file-selected", self.store[tree_iter][self.COL_PATH])
+    def _on_selection_changed(self, selection) -> None:
+        model, tree_iter = selection.get_selected()
+        if tree_iter is not None and not model[tree_iter][self.COL_IS_DIR]:
+            self.emit("file-selected", model[tree_iter][self.COL_PATH])
 
     def _get_selected_path(self) -> Path | None:
         selection = self.tree_view.get_selection()
@@ -98,6 +100,69 @@ class FileTree(gtk.Box):
         if tree_iter is None:
             return None
         return Path(model[tree_iter][self.COL_PATH])
+
+    def _on_button_press(self, tree_view, event) -> bool:
+        if event.button != 3:
+            return False
+
+        path_info = tree_view.get_path_at_pos(int(event.x), int(event.y))
+        if path_info is None:
+            return False
+
+        tree_path, _column, _cell_x, _cell_y = path_info
+        tree_view.get_selection().select_path(tree_path)
+
+        target = self._get_selected_path()
+        if target is None:
+            return False
+
+        menu = gtk.Menu()
+
+        rename_item = gtk.MenuItem(label="Rename")
+        rename_item.connect("activate", lambda _i: self._on_rename(target))
+        menu.append(rename_item)
+
+        delete_item = gtk.MenuItem(label="Delete")
+        delete_item.connect("activate", lambda _i: self._on_delete(target))
+        menu.append(delete_item)
+
+        menu.show_all()
+        menu.popup_at_pointer(event)
+        return True
+
+    def _on_rename(self, target: Path) -> None:
+        dialog = gtk.Dialog(title="Rename", transient_for=self.get_toplevel(), flags=0)
+        dialog.add_buttons(gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL, gtk.STOCK_OK, gtk.ResponseType.OK)
+        entry = gtk.Entry()
+        entry.set_text(target.name)
+        dialog.get_content_area().add(entry)
+        dialog.show_all()
+        response = dialog.run()
+        new_name = entry.get_text().strip()
+        dialog.destroy()
+
+        if response == gtk.ResponseType.OK and new_name and new_name != target.name:
+            target.rename(target.with_name(new_name))
+            self.refresh()
+
+    def _on_delete(self, target: Path) -> None:
+        dialog = gtk.MessageDialog(
+            transient_for=self.get_toplevel(), message_type=gtk.MessageType.WARNING,
+            buttons=gtk.ButtonsType.OK_CANCEL, text=f'Delete "{target.name}"?',
+        )
+        dialog.format_secondary_text(
+            "This will permanently delete the folder and its contents."
+            if target.is_dir() else "This will permanently delete the file."
+        )
+        response = dialog.run()
+        dialog.destroy()
+
+        if response == gtk.ResponseType.OK:
+            if target.is_dir():
+                shutil.rmtree(target)
+            else:
+                target.unlink()
+            self.refresh()
 
     def _on_new_folder(self) -> None:
         parent = self._get_selected_path()

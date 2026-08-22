@@ -1,0 +1,79 @@
+/* Markdown Studio - application-wide styling, nature/green palette. */
+
+/* Left panel: file tree */
+.sidebar-button {
+	background-image: none;
+	background-color: #19944b;
+	color: #ffffff;
+	border: 1px solid #0e6f34;
+	border-radius: 8px;
+	font-weight: 700;
+	padding: 6px 10px;
+}
+
+.sidebar-button:hover {
+	background-color: #1daf57;
+}
+
+.sidebar-button:active {
+	background-color: #157f3f;
+}
+
+/* Editor toolbar */
+.save-button {
+	background-image: none;
+	background-color: #19944b;
+	color: #ffffff;
+	border: 1px solid #0e6f34;
+	border-radius: 8px;
+	font-weight: 700;
+	padding: 6px 12px;
+}
+
+.save-button:hover {
+	background-color: #1daf57;
+}
+
+.save-button:active {
+	background-color: #157f3f;
+}
+
+.export-button {
+	background-image: none;
+	background-color: #4a7fa5;
+	color: #ffffff;
+	border: 1px solid #3a6a8a;
+	border-radius: 8px;
+	padding: 6px 12px;
+}
+
+.export-button:hover {
+	background-color: #5590b8;
+}
+
+.export-button:active {
+	background-color: #3a6a8a;
+}
+
+.preview-toggle {
+	background-image: none;
+	background-color: transparent;
+	border: 1px solid #c8d6cb;
+	border-radius: 8px;
+	padding: 4px 8px;
+}
+
+.preview-toggle:checked {
+	background-color: #26c465;
+	border-color: #0e6f34;
+}
+
+/* Green checkmark flashed in the headerbar after a successful save/export */
+.save-indicator {
+	color: #19944b;
+}
+
+/* Markdown text editor: font size set via Pango override in editor.py (CSS font-size is ignored by GTK3 for textview) */
+.markdown-editor text {
+	caret-color: #19944b;
+}
