@@ -19,6 +19,7 @@
 
 /* ==========================================================
    GLOBAL
+   Base page background, default typography, and spacing for html/body.
    ========================================================== */
 
 html,body{
@@ -43,6 +44,7 @@ body{
 
 /* ==========================================================
    MAIN DOCUMENT
+   The main content container that wraps the rendered markdown.
    ========================================================== */
 
 /* Container */
@@ -60,6 +62,7 @@ body > #content, .container, article {
 
 /* ==========================================================
    HEADINGS
+   Heading levels (h1-h6).
    ========================================================== */
 
 h1, h2, h3, h4, h5, h6{
@@ -68,21 +71,25 @@ h1, h2, h3, h4, h5, h6{
     letter-spacing: 0.6px;
 }
 
-h1{ font-size:2.2rem }
-h2{ font-size:1.6rem }
+h1{ font-size:2.2rem;  margin: 10px }
+h2{ font-size:1.6rem;  margin: 10px }
 
 
 /* ==========================================================
    TEXT
+   Body text elements: paragraphs, list items, and bold text.
    ========================================================== */
 
 p, li {
-    color: #acc1d4; line-height:2rem; font-size:1.4rem; margin: 5px;
+    color: #bcd1e4; line-height:2rem; font-size:1.2rem; margin: 10px;
 }
+
+strong{ color: var(--neon-pink); }
 
 
 /* ==========================================================
    LINKS
+   Hyperlink colors and hover states.
    ========================================================== */
 
 a{
@@ -95,6 +102,7 @@ a:hover{ color: var(--neon-pink); text-shadow: 0 0 12px var(--neon-pink) }
 
 /* ==========================================================
    BLOCKQUOTE
+   Styling for quoted text blocks.
    ========================================================== */
 
 blockquote{
@@ -105,6 +113,7 @@ blockquote{
 
 /* ==========================================================
    HORIZONTAL RULE
+   The <hr> separator element.
    ========================================================== */
 
 hr{ border:0; height:1px; background: linear-gradient(90deg, rgba(255,0,204,0.12), rgba(0,230,255,0.06)) }
@@ -112,15 +121,24 @@ hr{ border:0; height:1px; background: linear-gradient(90deg, rgba(255,0,204,0.12
 
 /* ==========================================================
    TABLES
+   Table, row, and cell styling.
    ========================================================== */
 
-table{ width:100%; border-collapse:collapse; overflow:auto }
-th, td{ padding:10px; border-bottom:1px solid rgba(255,255,255,0.03); }
-th{ color:var(--neon-cyan); background: rgba(0,230,255,0.02) }
+table{
+    width:calc(100% - 20px);
+    border-collapse:collapse;
+    overflow:auto;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+th, td{ padding:10px; border:1px solid rgba(0,230,255,0.2); }
+th{ color:var(--neon-cyan); background: rgba(0,230,255,0.08); font-weight:700; }
+tr:nth-child(even){ background: rgba(255,255,255,0.02); }
 
 
 /* ==========================================================
    CODE
+   Inline code and preformatted code blocks.
    ========================================================== */
 
 /* Pre & code neon style */
@@ -137,7 +155,17 @@ code{ background: rgba(0,0,0,0.4); padding:0.2em 0.4em; border-radius:4px; color
 
 
 /* ==========================================================
+   DETAILS / SUMMARY
+   Collapsible <details>/<summary> disclosure widgets.
+   ========================================================== */
+
+summary{ cursor:pointer; color:var(--neon-cyan); font-weight:700; }
+summary:hover{ color:var(--neon-pink); }
+
+
+/* ==========================================================
    SIDE NAVIGATION
+   The fixed sidebar panel and its navigation buttons.
    ========================================================== */
 
 .sidenav{
@@ -202,6 +230,7 @@ code{ background: rgba(0,0,0,0.4); padding:0.2em 0.4em; border-radius:4px; color
 
 /* ==========================================================
    NAVIGATION CONTROLS
+   Sidebar open/close buttons and the main content offset.
    ========================================================== */
 
 .sidenav .closebtn {
@@ -228,12 +257,21 @@ code{ background: rgba(0,0,0,0.4); padding:0.2em 0.4em; border-radius:4px; color
 
 /* ==========================================================
    TOOLTIP
+   Hover tooltips attached to elements.
    ========================================================== */
 
 .tooltip-content{ background: rgba(0,0,0,0.6); color:#dff6ff; border:1px solid rgba(0,230,255,0.08); display: none !important; }
 
 /* Also ensure tooltips inside sidebar/buttons are hidden to avoid duplicated labels */
 .sidenav .tooltip-content, .button .tooltip-content, .menu-item .tooltip-content { display: none !important; }
+
+
+/* ==========================================================
+   IMAGES
+   Responsive image sizing.
+   ========================================================== */
+
+img{ max-width:100%; height:auto; }
 
 
 /* ==========================================================
@@ -267,6 +305,7 @@ small, sub, sup{ color: #b9d1dd }
 
 /* ==========================================================
    MOBILE
+   Responsive layout adjustments for small screens.
    ========================================================== */
 
 /* Small screens */
@@ -280,9 +319,10 @@ small, sub, sup{ color: #b9d1dd }
 
 /* ==========================================================
    PRINT
+   Layout resets so PDF export can paginate the document across
+   multiple pages instead of clipping it to one viewport-sized page.
    ========================================================== */
 
-/* Print layout: let WeasyPrint paginate the document instead of sizing it like a viewport. */
 @media print {
     html,
     body {

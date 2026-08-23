@@ -9,25 +9,21 @@
     --bg: #d8d9d4;
     --paper: #e9e9e4;
     --paper-dark: #d0d1cc;
-
     --ink: #202323;
     --muted: #606462;
-
     --red: #7b2527;
     --red-dark: #501719;
-
     --steel: #6d7473;
     --steel-dark: #414746;
     --steel-light: #aeb3b0;
-
     --gold: #9a8652;
-
     --shadow: rgba(20, 24, 23, 0.22);
 }
 
 
 /* ==========================================================
    GLOBAL
+   Base page background, default typography, and spacing for html/body.
    ========================================================== */
 
 html {
@@ -45,30 +41,24 @@ html {
 body {
     margin: 0;
     padding: 30px;
-
     font-family: "Lato", sans-serif;
-
     font-size: 16px;
     line-height: 1.65;
-
     color: var(--ink);
-
     -webkit-font-smoothing: antialiased;
 }
 
 
 /* ==========================================================
    MAIN DOCUMENT
+   The main content container that wraps the rendered markdown.
    ========================================================== */
 
 body > #content {
     max-width: 900px;
-
     margin-left: auto;
     margin-right: auto;
-
     padding: 35px 50px 45px;
-
     background:
         linear-gradient(
             180deg,
@@ -76,13 +66,10 @@ body > #content {
             rgba(255,255,255,0.15)
         ),
         var(--paper);
-
     border: 1px solid var(--steel);
-
     box-shadow:
         0 2px 3px rgba(0,0,0,0.15),
         0 12px 30px var(--shadow);
-
     position: relative;
 }
 
@@ -93,22 +80,19 @@ body > #content {
 
 body > #content::before {
     content: "";
-
     position: absolute;
-
     top: 10px;
     left: 10px;
     right: 10px;
     bottom: 10px;
-
     border: 1px solid rgba(109,116,115,0.35);
-
     pointer-events: none;
 }
 
 
 /* ==========================================================
    HEADINGS
+   Heading levels (h1-h6).
    ========================================================== */
 
 h1,
@@ -116,11 +100,8 @@ h2,
 h3,
 h4 {
     font-family: "Cinzel", Georgia, serif;
-
     color: var(--steel-dark);
-
     font-weight: 600;
-
     line-height: 1.25;
 }
 
@@ -129,18 +110,12 @@ h4 {
 
 h1 {
     font-size: 2.35em;
-
     color: var(--red);
-
     letter-spacing: 1px;
-
     margin-top: 0;
     margin-bottom: 30px;
-
     padding-bottom: 14px;
-
     border-bottom: 3px solid var(--red);
-
     position: relative;
 }
 
@@ -151,15 +126,11 @@ h1 {
 
 h1::after {
     content: "";
-
     position: absolute;
-
     left: 0;
     bottom: -7px;
-
     width: 90px;
     height: 5px;
-
     background: var(--gold);
 }
 
@@ -168,14 +139,10 @@ h1::after {
 
 h2 {
     font-size: 1.55em;
-
     margin-top: 2em;
     margin-bottom: 0.8em;
-
     padding-bottom: 7px;
-
     border-bottom: 1px solid var(--steel-light);
-
     color: var(--red);
 }
 
@@ -184,34 +151,27 @@ h2 {
 
 h3 {
     font-size: 1.15em;
-
     margin-top: 1.6em;
-
     color: var(--steel-dark);
-
     text-transform: uppercase;
-
     letter-spacing: 0.8px;
 }
 
 h4 {
     font-size: 1em;
-
     color: var(--red);
 }
 
 
 /* ==========================================================
    TEXT
+   Body text elements: paragraphs, list items, and bold text.
    ========================================================== */
 
 p {
     font-family: "Lato", sans-serif;
-
     font-size: 16px;
-
     line-height: 1.7;
-
     color: var(--ink);
 }
 
@@ -221,76 +181,62 @@ strong {
 
 li {
     font-size: 16px;
-
     line-height: 1.6;
-
     color: var(--ink);
 }
 
 
 /* ==========================================================
    LINKS
+   Hyperlink colors and hover states.
    ========================================================== */
 
 a,
 a:visited {
     color: var(--red);
-
     font-weight: 600;
-
     text-decoration: none;
 }
 
 a:hover {
     color: var(--red-dark);
-
     text-decoration: underline;
 }
 
 
 /* ==========================================================
    BLOCKQUOTE
+   Styling for quoted text blocks.
    ========================================================== */
 
 blockquote {
     margin: 25px 20px;
-
     padding: 18px 25px;
-
     background: #dedfdb;
-
     border-left: 5px solid var(--red);
-
     border-top: 1px solid var(--steel-light);
     border-bottom: 1px solid var(--steel-light);
-
     color: var(--steel-dark);
-
     font-family: Georgia, serif;
-
     font-size: 17px;
-
     line-height: 1.6;
 }
 
 blockquote p {
     color: var(--steel-dark);
-
     margin: 0;
 }
 
 
 /* ==========================================================
    HORIZONTAL RULE
+   The <hr> separator element.
    ========================================================== */
 
 hr {
     height: 1px;
-
     border: 0;
-
     margin: 35px 0;
-
     background:
         linear-gradient(
             90deg,
@@ -303,38 +249,29 @@ hr {
 
 /* ==========================================================
    TABLES
+   Table, row, and cell styling.
    ========================================================== */
 
 table {
     width: 100%;
-
     border-collapse: collapse;
-
     margin: 25px 0;
-
     font-size: 15px;
-
     background: var(--paper);
 }
 
 th {
     background: var(--steel-dark);
-
     color: #f0f1ee;
-
     font-family: "Cinzel", Georgia, serif;
-
     font-weight: 600;
-
     letter-spacing: 0.3px;
-
     text-align: left;
 }
 
 th,
 td {
     padding: 9px 13px;
-
     border: 1px solid var(--steel-light);
 }
 
@@ -349,21 +286,16 @@ tr:hover {
 
 /* ==========================================================
    CODE
+   Inline code and preformatted code blocks.
    ========================================================== */
 
 pre {
     background: #e1e3df;
-
     color: #2c302f;
-
     border-left: 4px solid var(--red);
-
     padding: 18px;
-
     border-radius: 2px;
-
     overflow: auto;
-
     box-shadow:
         inset 0 0 8px rgba(0,0,0,0.10);
 }
@@ -374,40 +306,30 @@ code {
         Consolas,
         "Liberation Mono",
         monospace;
-
     font-size: 0.9em;
-
     background: #d4d5d1;
-
     color: #343837;
-
     padding: 2px 5px;
-
     border-radius: 2px;
 }
 
 pre code {
     background: transparent;
-
     color: inherit;
-
     padding: 0;
 }
 
 
 /* ==========================================================
    DETAILS / SUMMARY
+   Collapsible <details>/<summary> disclosure widgets.
    ========================================================== */
 
 summary {
     cursor: pointer;
-
     font-family: "Cinzel", Georgia, serif;
-
     font-weight: 600;
-
     color: var(--red);
-
     padding: 8px 0;
 }
 
@@ -418,32 +340,25 @@ summary:hover {
 
 /* ==========================================================
    SIDE NAVIGATION
+   The fixed sidebar panel and its navigation buttons.
    ========================================================== */
 
 .sidenav {
     height: 100%;
     width: 400px;
-
     position: fixed;
-
     top: 0;
     left: 0;
-
     background:
         linear-gradient(
             135deg,
             #c8cbc8,
             #b5bab7
         );
-
     border-right: 3px solid var(--red);
-
     overflow-x: hidden;
-
     transition: 0.2s;
-
     padding-top: 40px;
-
     box-shadow:
         5px 0 20px rgba(0,0,0,0.25);
 }
@@ -455,17 +370,11 @@ summary:hover {
 
 .button {
     height: 42px;
-
     width: 340px;
-
     margin: 6px;
-
     padding: 0 12px;
-
     display: block;
-
     overflow-x: hidden;
-
     background:
         linear-gradient(
             90deg,
@@ -474,45 +383,30 @@ summary:hover {
         );
 
     border: 1px solid var(--steel);
-
     border-left: 4px solid var(--steel-dark);
-
     border-radius: 1px;
-
     font-family: "Lato", sans-serif;
-
     font-size: 16px;
-
     font-weight: 600;
-
     color: var(--ink);
-
     text-align: left;
-
     transition:
         0.15s ease;
 }
 
 .button:hover {
     cursor: pointer;
-
     background: #e8e9e5;
-
     border-left-color: var(--red);
-
     color: var(--red);
-
     box-shadow:
         3px 0 0 var(--red);
 }
 
 .button-selected {
     background: #e8e9e5;
-
     border-left-color: var(--red);
-
     color: var(--red);
-
     box-shadow:
         3px 0 0 var(--red);
 }
@@ -520,43 +414,32 @@ summary:hover {
 
 /* ==========================================================
    NAVIGATION CONTROLS
+   Sidebar open/close buttons and the main content offset.
    ========================================================== */
 
 .sidenav .closebtn {
     position: absolute;
-
     top: 0;
     right: 20px;
-
     font-size: 34px;
-
     font-family: "Lato", sans-serif;
-
     color: var(--red);
-
     user-select: none;
 }
 
 .closebtn:hover {
     cursor: pointer;
-
     color: var(--red-dark);
 }
 
 .openButton {
     position: fixed;
-
     top: 5px;
     left: 10px;
-
     font-size: 30px;
-
     color: var(--red);
-
     cursor: pointer;
-
     user-select: none;
-
     z-index: 100;
 }
 
@@ -583,69 +466,52 @@ summary:hover {
 
 /* ==========================================================
    TOOLTIP
+   Hover tooltips attached to elements.
    ========================================================== */
 
 .tooltip {
     position: relative;
-
     display: inline-block;
 }
 
 .tooltip-content {
     display: none;
-
     position: relative;
-
     margin-left: 100px;
     margin-top: 50px;
-
     background: var(--paper);
-
     max-width: 300px;
     min-width: 150px;
-
     z-index: 20;
-
     border: 1px solid var(--steel);
-
     border-left: 4px solid var(--red);
-
     box-shadow:
         0 8px 20px rgba(0,0,0,0.25);
-
     color: var(--ink);
-
     text-align: center;
-
     padding: 10px;
-
     border-radius: 2px;
 }
 
 .tooltip:hover .tooltip-content {
     display: block;
-
     position: fixed;
-
     top: 0;
     left: 0;
-
     margin-top: 5px;
     margin-left: 60px;
-
     z-index: 200;
 }
 
 
 /* ==========================================================
    IMAGES
+   Responsive image sizing.
    ========================================================== */
 
 img {
     max-width: 100%;
-
     border: 1px solid var(--steel);
-
     box-shadow:
         0 3px 8px rgba(0,0,0,0.2);
 }
@@ -653,6 +519,7 @@ img {
 
 /* ==========================================================
    MOBILE
+   Responsive layout adjustments for small screens.
    ========================================================== */
 
 @media only screen and (max-width: 700px) {
@@ -667,7 +534,6 @@ img {
 
     body > #content {
         padding: 20px !important;
-
         margin: 0 !important;
     }
 
@@ -681,5 +547,43 @@ img {
 
     h2 {
         font-size: 1.35em;
+    }
+}
+
+
+/* ==========================================================
+   PRINT
+   Layout resets so PDF export can paginate the document across
+   multiple pages instead of clipping it to one viewport-sized page.
+   ========================================================== */
+
+@media print {
+    html,
+    body {
+        height: auto;
+        min-height: 0;
+    }
+
+    .sidenav,
+    .openButton {
+        position: static;
+        width: auto;
+        height: auto;
+        margin: 0;
+        overflow: visible;
+    }
+
+    #main {
+        margin-left: 0;
+    }
+
+    pre,
+    table {
+        overflow: visible;
+    }
+
+    img {
+        max-width: 100%;
+        height: auto;
     }
 }

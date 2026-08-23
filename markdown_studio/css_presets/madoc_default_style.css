@@ -7,6 +7,7 @@
 
 /* ==========================================================
    GLOBAL
+   Base page background, default typography, and spacing for html/body.
    ========================================================== */
 
 html {
@@ -37,6 +38,7 @@ body {
 
 /* ==========================================================
    MAIN DOCUMENT
+   The main content container that wraps the rendered markdown.
    ========================================================== */
 
 body>#content {
@@ -53,6 +55,7 @@ body>#content {
 
 /* ==========================================================
    HEADINGS
+   Heading levels (h1-h6).
    ========================================================== */
 
 h1,
@@ -66,6 +69,7 @@ h3 {
 
 /* ==========================================================
    TEXT
+   Body text elements: paragraphs, list items, and bold text.
    ========================================================== */
 
 p {
@@ -90,10 +94,15 @@ li+li {
     margin-top: 0.25em;
 }
 
+strong {
+    font-weight: 600;
+}
 
-/**
-* Links
-*/
+
+/* ==========================================================
+   LINKS
+   Hyperlink colors and hover states.
+   ========================================================== */
 
 a {
     color: #0366d6;
@@ -110,9 +119,11 @@ a:hover {
 }
 
 
-/**
-* Blockquotes
-*/
+/* ==========================================================
+   BLOCKQUOTE
+   Styling for quoted text blocks.
+   ========================================================== */
+
 blockquote {
     margin-left: 30px;
     margin-top: 0px;
@@ -136,6 +147,7 @@ blockquote * {
 
 /* ==========================================================
    HORIZONTAL RULE
+   The <hr> separator element.
    ========================================================== */
 
 hr {
@@ -149,15 +161,19 @@ hr {
 }
 
 
-/**
-* Tables
-*/
+/* ==========================================================
+   TABLES
+   Table, row, and cell styling.
+   ========================================================== */
+
 table {
     border-spacing: 2px;
     display: block;
     font-size: 14px;
     overflow: auto;
     width: 100%;
+    margin-left: 10px;
+    margin-right: 10px;
     margin-bottom: 16px;
     border-spacing: 0;
     border-collapse: collapse;
@@ -184,9 +200,10 @@ table tr:nth-child(2n) {
 }
 
 
-/**
-  * Code blocks
-  */
+/* ==========================================================
+   CODE
+   Inline code and preformatted code blocks.
+   ========================================================== */
 
 pre {
     background-color: #dbdbdb;
@@ -226,6 +243,7 @@ code>* {
 
 /* ==========================================================
    DETAILS / SUMMARY
+   Collapsible <details>/<summary> disclosure widgets.
    ========================================================== */
 
 summary {
@@ -236,6 +254,7 @@ summary {
 
 /* ==========================================================
    SIDE NAVIGATION
+   The fixed sidebar panel and its navigation buttons.
    ========================================================== */
 
 .sidenav {
@@ -279,6 +298,7 @@ summary {
 
 /* ==========================================================
    NAVIGATION CONTROLS
+   Sidebar open/close buttons and the main content offset.
    ========================================================== */
 
 .sidenav .closebtn {
@@ -320,6 +340,7 @@ summary {
 
 /* ==========================================================
    TOOLTIP
+   Hover tooltips attached to elements.
    ========================================================== */
 
 /* Tooltip container */
@@ -358,6 +379,7 @@ summary {
 
 /* ==========================================================
    IMAGES
+   Responsive image sizing.
    ========================================================== */
 
 img {
@@ -367,6 +389,7 @@ img {
 
 /* ==========================================================
    MOBILE
+   Responsive layout adjustments for small screens.
    ========================================================== */
 
 @media only screen and (max-width: 700px) {
@@ -383,5 +406,43 @@ img {
     }
     .menu-item {
         margin-left: 10px;
+    }
+}
+
+
+/* ==========================================================
+   PRINT
+   Layout resets so PDF export can paginate the document across
+   multiple pages instead of clipping it to one viewport-sized page.
+   ========================================================== */
+
+@media print {
+    html,
+    body {
+        height: auto;
+        min-height: 0;
+    }
+
+    .sidenav,
+    .openButton {
+        position: static;
+        width: auto;
+        height: auto;
+        margin: 0;
+        overflow: visible;
+    }
+
+    #main {
+        margin-left: 0;
+    }
+
+    pre,
+    table {
+        overflow: visible;
+    }
+
+    img {
+        max-width: 100%;
+        height: auto;
     }
 }
