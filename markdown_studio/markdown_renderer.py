@@ -6,6 +6,24 @@ DEFAULT_PDF_MARGIN_MM = 5
 
 def render_html(markdown_text: str, css_href: str | None = None, margin_mm: int = DEFAULT_PDF_MARGIN_MM) -> str:
     body = markdown.markdown(markdown_text, extensions=["extra", "sane_lists"])
+    return _wrap_document(body, css_href=css_href, margin_mm=margin_mm)
+
+
+def render_pages_html(
+    markdown_texts: list[str],
+    css_href: str | None = None,
+    margin_mm: int = DEFAULT_PDF_MARGIN_MM,
+) -> str:
+    """Render multiple markdown documents, forcing each one onto its own PDF page."""
+    pages = []
+    for index, markdown_text in enumerate(markdown_texts):
+        page_body = markdown.markdown(markdown_text, extensions=["extra", "sane_lists"])
+        break_style = "" if index == 0 else " style=\"page-break-before: always;\""
+        pages.append(f"<div{break_style}>{page_body}</div>")
+    return _wrap_document("\n".join(pages), css_href=css_href, margin_mm=margin_mm)
+
+
+def _wrap_document(body: str, css_href: str | None = None, margin_mm: int = DEFAULT_PDF_MARGIN_MM) -> str:
     page_style = f"<style>@page {{ margin: {margin_mm}mm; }}</style>"
     css_link = f'<link rel="stylesheet" href="{css_href}">' if css_href else ""
     image_style = "<style>img { max-width: 100%; height: auto; }</style>"

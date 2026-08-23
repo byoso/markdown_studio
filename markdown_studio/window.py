@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
+import time
 from pathlib import Path
 
 import gi
@@ -35,10 +37,19 @@ class MainWindow(gtk.Window):
         left_box.set_size_request(220, -1)
         paned.pack1(left_box, resize=False, shrink=False)
 
+        sidebar_toolbar = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=4)
         new_file_button = gtk.Button(label="New markdown file")
         new_file_button.get_style_context().add_class("sidebar-button")
         new_file_button.connect("clicked", self._on_new_file_clicked)
-        left_box.pack_start(new_file_button, False, False, 0)
+        sidebar_toolbar.pack_start(new_file_button, True, True, 0)
+
+        refresh_button = gtk.Button()
+        refresh_button.set_image(gtk.Image.new_from_icon_name("view-refresh-symbolic", gtk.IconSize.BUTTON))
+        refresh_button.set_tooltip_text("Refresh")
+        refresh_button.get_style_context().add_class("sidebar-button")
+        refresh_button.connect("clicked", self._on_refresh_clicked)
+        sidebar_toolbar.pack_start(refresh_button, False, False, 0)
+        left_box.pack_start(sidebar_toolbar, False, False, 0)
 
         self.file_tree = FileTree(self.project.path)
         self.file_tree.connect("file-selected", self._on_file_selected)
@@ -82,6 +93,8 @@ class MainWindow(gtk.Window):
         self.editor.text_view.get_style_context().add_class("markdown-editor")
         self.editor.set_font_size(self.project.get_font_size())
         content_paned.pack1(self.editor, resize=True, shrink=False)
+
+        self._last_markdown_path: Path | None = None
 
         self.preview = PreviewPane()
         self.preview.set_size_request(300, -1)
@@ -181,8 +194,17 @@ class MainWindow(gtk.Window):
         Gio.AppInfo.launch_default_for_uri(f"file://{path}")
 
     def _on_file_selected(self, _widget, file_path: str) -> None:
-        if file_path.endswith(".md"):
-            self.editor.load_file(file_path)
+        if not file_path.endswith((".md", ".css")):
+            return
+        # Rebuilding the file tree (e.g. on refresh) can re-fire this signal
+        # for the file that is already open; reloading it would wipe undo history.
+        if self.editor.current_path is not None and str(self.editor.current_path) == file_path:
+            return
+        self.editor.load_file(file_path)
+
+    def _on_refresh_clicked(self, _button) -> None:
+        self.file_tree.refresh()
+        self._refresh_preview()
 
     def _on_save_clicked(self, _button) -> None:
         self.editor.save()
@@ -198,9 +220,20 @@ class MainWindow(gtk.Window):
     def _refresh_preview(self) -> None:
         if not self.preview_toggle.get_active():
             return
+        if self.editor.current_path is not None and self.editor.current_path.suffix.lower() == ".md":
+            self._last_markdown_path = self.editor.current_path
+            markdown_text = self.editor.get_text()
+        elif self._last_markdown_path is not None:
+            markdown_text = self._last_markdown_path.read_text(encoding="utf-8")
+        else:
+            return
+        css_href = self.project.get_css_relative_path()
+        if css_href:
+            # Bust WebKit's resource cache so on-disk CSS edits show up immediately.
+            css_href = f"{css_href}?t={time.time()}"
         html = render_html(
-            self.editor.get_text(),
-            css_href=self.project.get_css_relative_path(),
+            markdown_text,
+            css_href=css_href,
             margin_mm=self.project.get_pdf_margin_mm(),
         )
         self.preview.load_html(html, self.project.path)
@@ -209,6 +242,13 @@ class MainWindow(gtk.Window):
         if event.keyval == Gdk.KEY_s and event.state & Gdk.ModifierType.CONTROL_MASK:
             self.editor.save()
             self._flash_save_indicator()
+            return True
+        if event.keyval == Gdk.KEY_y and event.state & Gdk.ModifierType.CONTROL_MASK:
+            if self.editor.buffer.can_redo():
+                self.editor.buffer.redo()
+            return True
+        if event.keyval == Gdk.KEY_f and event.state & Gdk.ModifierType.CONTROL_MASK:
+            self.editor.focus_search()
             return True
         return False
 
@@ -229,6 +269,13 @@ class MainWindow(gtk.Window):
         content.add(title_entry)
 
         content.add(gtk.Label(label="Stylesheet:", xalign=0))
+        preset_button = gtk.Button(label="Get a preset")
+        preset_button.connect(
+            "clicked",
+            lambda _b: self._on_get_preset_clicked(dialog, css_label, remove_css_button),
+        )
+        content.add(preset_button)
+
         css_box = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=4)
         css_label = gtk.Label(label=self._css_label_text())
         css_button = gtk.Button(label="Choose CSS file")
@@ -291,6 +338,32 @@ class MainWindow(gtk.Window):
         self.project.set_css_path(None)
         css_label.set_text(self._css_label_text())
         remove_css_button.set_sensitive(False)
+        self._refresh_preview()
+
+    def _on_get_preset_clicked(self, parent, css_label: gtk.Label, remove_css_button: gtk.Button) -> None:
+        presets_dir = Path(__file__).parent / "css_presets"
+        dialog = gtk.FileChooserDialog(
+            title="Choose a CSS preset", transient_for=parent, action=gtk.FileChooserAction.OPEN,
+        )
+        dialog.set_current_folder(str(presets_dir))
+        dialog.add_buttons(gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL, gtk.STOCK_OPEN, gtk.ResponseType.OK)
+        css_filter = gtk.FileFilter()
+        css_filter.set_name("CSS files")
+        css_filter.add_pattern("*.css")
+        dialog.add_filter(css_filter)
+        response = dialog.run()
+        preset_path = dialog.get_filename()
+        dialog.destroy()
+
+        if response != gtk.ResponseType.OK or not preset_path:
+            return
+
+        destination = self.project.path / Path(preset_path).name
+        shutil.copy(preset_path, destination)
+        self.project.set_css_path(destination)
+        css_label.set_text(self._css_label_text())
+        remove_css_button.set_sensitive(True)
+        self.file_tree.refresh()
         self._refresh_preview()
 
     def _on_new_file_clicked(self, _button) -> None:

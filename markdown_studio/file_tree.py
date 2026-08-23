@@ -57,9 +57,34 @@ class FileTree(gtk.Box):
 
         self.refresh()
 
-    def refresh(self) -> None:
+    def refresh(self, select_path: Path | None = None) -> None:
+        selected_path = select_path if select_path is not None else self._get_selected_path()
         self.store.clear()
         self._populate(self.root_path, None)
+        if selected_path is not None:
+            self._reselect(selected_path)
+
+    def _reselect(self, target: Path) -> None:
+        """Restore the selection after a rebuild, so refresh never silently
+        jumps to a different file (and its editor buffer/undo history)."""
+        target_str = str(target)
+
+        def find(parent_iter):
+            child_iter = self.store.iter_children(parent_iter)
+            while child_iter is not None:
+                if self.store[child_iter][self.COL_PATH] == target_str:
+                    return child_iter
+                if self.store[child_iter][self.COL_IS_DIR]:
+                    found = find(child_iter)
+                    if found is not None:
+                        return found
+                child_iter = self.store.iter_next(child_iter)
+            return None
+
+        found_iter = find(None)
+        if found_iter is not None:
+            self.tree_view.get_selection().select_iter(found_iter)
+            self.tree_view.scroll_to_cell(self.store.get_path(found_iter))
 
     def set_root_path(self, root_path: str | Path) -> None:
         self.root_path = Path(root_path)
@@ -210,11 +235,11 @@ class FileTree(gtk.Box):
         if not (0 <= neighbor_index < len(siblings)):
             return
 
-        self._swap_prefixes(selected, siblings[neighbor_index])
-        self.refresh()
+        new_selected_path = self._swap_prefixes(selected, siblings[neighbor_index])
+        self.refresh(select_path=new_selected_path)
 
     @staticmethod
-    def _swap_prefixes(file_a: Path, file_b: Path) -> None:
+    def _swap_prefixes(file_a: Path, file_b: Path) -> Path:
         prefix_a = parse_order_prefix(file_a.name)
         prefix_b = parse_order_prefix(file_b.name)
         name_a = set_order_prefix(file_a.name, prefix_b)
@@ -224,4 +249,6 @@ class FileTree(gtk.Box):
         temp_a = file_a.with_name(f".tmp_swap_{file_a.name}")
         file_a.rename(temp_a)
         file_b.rename(file_b.with_name(name_b))
-        temp_a.rename(file_a.with_name(name_a))
+        new_path_a = file_a.with_name(name_a)
+        temp_a.rename(new_path_a)
+        return new_path_a

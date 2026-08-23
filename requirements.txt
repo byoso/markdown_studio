@@ -1,4 +1,4 @@
 
 markdown>=3.4
 weasyprint>=60.0
-madoc
+madoc>=1.5.0

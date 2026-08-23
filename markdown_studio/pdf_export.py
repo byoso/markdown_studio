@@ -5,7 +5,7 @@ from pathlib import Path
 
 from weasyprint import HTML
 
-from .markdown_renderer import render_html
+from .markdown_renderer import render_html, render_pages_html
 from .project import Project
 
 
@@ -24,12 +24,12 @@ def export_single(project: Project, md_path: str | Path, pdf_path: str | Path | 
 
 def export_project(project: Project, pdf_path: str | Path) -> Path:
     pdf_path = Path(pdf_path)
-    combined_markdown = "\n\n".join(
+    markdown_texts = [
         path.read_text(encoding="utf-8") for path in project.list_markdown_files()
-    )
+    ]
 
-    html = render_html(
-        combined_markdown,
+    html = render_pages_html(
+        markdown_texts,
         css_href=project.get_css_relative_path(),
         margin_mm=project.get_pdf_margin_mm(),
     )

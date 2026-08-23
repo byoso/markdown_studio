@@ -1,0 +1,319 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+/* ==========================================================
+   CYBERPUNK — NEON GRID
+   Retro-futuristic / high-contrast neon aesthetic
+   ========================================================== */
+
+:root{
+    --bg-1: #38373f;
+    --bg-2: rgb(58, 63, 78);
+    --neon-pink: #d368bd;
+    --neon-cyan: #00e6ff;
+    --neon-purple: #9d00ff;
+    --muted: #9aa0a6;
+    --glass: rgba(255,255,255,0.03);
+}
+
+
+/* ==========================================================
+   GLOBAL
+   ========================================================== */
+
+html,body{
+    height:100%;
+}
+
+html{
+    background: radial-gradient(ellipse at 10% 10%, rgba(157,0,255,0.08), transparent 10%),
+                            radial-gradient(ellipse at 90% 90%, rgba(0,230,255,0.06), transparent 12%),
+                            linear-gradient(180deg, var(--bg-1), var(--bg-2));
+    color: #bcc2c9;
+}
+
+body{
+    font-family: 'Orbitron', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    margin:0;
+    padding:32px;
+    background-color: transparent;
+    -webkit-font-smoothing:antialiased;
+}
+
+
+/* ==========================================================
+   MAIN DOCUMENT
+   ========================================================== */
+
+/* Container */
+body > #content, .container, article {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border: 1px solid rgba(255,255,255,0.06);
+    border-left: 1px solid rgba(0,230,255,0.06);
+    border-radius: 10px;
+    padding: 28px 40px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 30px rgba(157,0,255,0.04) inset;
+}
+
+
+/* ==========================================================
+   HEADINGS
+   ========================================================== */
+
+h1, h2, h3, h4, h5, h6{
+    color: var(--neon-pink);
+    text-shadow: 0 0 18px rgba(255,0,204,0.18), 0 0 6px rgba(0,230,255,0.06);
+    letter-spacing: 0.6px;
+}
+
+h1{ font-size:2.2rem }
+h2{ font-size:1.6rem }
+
+
+/* ==========================================================
+   TEXT
+   ========================================================== */
+
+p, li {
+    color: #acc1d4; line-height:2rem; font-size:1.4rem; margin: 5px;
+}
+
+
+/* ==========================================================
+   LINKS
+   ========================================================== */
+
+a{
+    color: var(--neon-cyan);
+    text-decoration: none;
+    transition: color .18s ease, text-shadow .18s ease;
+}
+a:hover{ color: var(--neon-pink); text-shadow: 0 0 12px var(--neon-pink) }
+
+
+/* ==========================================================
+   BLOCKQUOTE
+   ========================================================== */
+
+blockquote{
+    border-left:4px solid rgba(255,0,204,0.18);
+    padding-left:16px; color:var(--muted); background: rgba(157,0,255,0.02);
+}
+
+
+/* ==========================================================
+   HORIZONTAL RULE
+   ========================================================== */
+
+hr{ border:0; height:1px; background: linear-gradient(90deg, rgba(255,0,204,0.12), rgba(0,230,255,0.06)) }
+
+
+/* ==========================================================
+   TABLES
+   ========================================================== */
+
+table{ width:100%; border-collapse:collapse; overflow:auto }
+th, td{ padding:10px; border-bottom:1px solid rgba(255,255,255,0.03); }
+th{ color:var(--neon-cyan); background: rgba(0,230,255,0.02) }
+
+
+/* ==========================================================
+   CODE
+   ========================================================== */
+
+/* Pre & code neon style */
+pre{
+    background: linear-gradient(180deg, rgba(0,0,0,0.4), rgba(10,10,20,0.5));
+    border-radius: 8px;
+    padding:16px;
+    overflow:auto;
+    color: #f8faff;
+    border: 1px solid rgba(157,0,255,0.12);
+    box-shadow: 0 6px 30px rgba(0,0,0,0.8), 0 0 18px rgba(157,0,255,0.06) inset;
+}
+code{ background: rgba(0,0,0,0.4); padding:0.2em 0.4em; border-radius:4px; color:var(--neon-cyan) }
+
+
+/* ==========================================================
+   SIDE NAVIGATION
+   ========================================================== */
+
+.sidenav{
+    background: transparent;
+    border-right:1px solid rgba(255,255,255,0.02);
+    font-size: large;
+    width:320px;
+    height:100%;
+    position:fixed;
+    top:0;
+    left:0;
+    overflow-x:hidden;
+    transition:0.2s;
+    padding-top:40px;
+    margin-left: 15px;
+}
+
+/*
+ * Navigation heading / buttons
+ */
+
+.button, button, input[type="button"], input[type="submit"]{
+    background: linear-gradient(90deg, rgba(0,0,0,0.25), rgba(255,255,255,0.02));
+    color: var(--neon-cyan);
+    border: 1px solid rgba(0,230,255,0.12);
+    padding: 10px 16px;
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.6), 0 0 18px rgba(0,230,255,0.06) inset;
+    cursor: pointer;
+    font-weight:700;
+    font-size: large;
+}
+.button:hover{ box-shadow: 0 8px 28px rgba(157,0,255,0.08), 0 0 22px rgba(0,230,255,0.12); color:var(--neon-pink) }
+
+/* Ensure sidebar labels render only once and stay neon blue */
+.sidenav .menu-item, .sidenav a, .sidenav .button {
+    color: var(--neon-cyan) !important;
+    text-shadow: none !important;
+}
+
+/* Hide any pseudo-elements that might duplicate labels */
+.sidenav .menu-item::before,
+.sidenav .menu-item::after,
+.sidenav a::before,
+.sidenav a::after,
+.sidenav .button::before,
+.sidenav .button::after {
+    content: none !important;
+    display: none !important;
+}
+
+/* Stack menu items vertically in the sidebar */
+.sidenav .menu-item { display: block; width: 100%; }
+.sidenav .menu-item .button, .sidenav .button {
+    display: block !important;
+    width: calc(100% - 32px) !important;
+    margin: 8px 16px !important;
+    box-sizing: border-box !important;
+    text-align: left !important;
+}
+
+
+/* ==========================================================
+   NAVIGATION CONTROLS
+   ========================================================== */
+
+.sidenav .closebtn {
+    position: absolute;
+    top: 0;
+    right: 25px;
+    font-size: 36px;
+    margin-left: 50px;
+    user-select: none;
+}
+.closebtn:hover { cursor: pointer }
+
+.openButton {
+    position: fixed;
+    top: 0;
+    left: 10px;
+    font-size:30px;
+    cursor: pointer;
+    user-select: none;
+}
+
+#main{ margin-left: 320px }
+
+
+/* ==========================================================
+   TOOLTIP
+   ========================================================== */
+
+.tooltip-content{ background: rgba(0,0,0,0.6); color:#dff6ff; border:1px solid rgba(0,230,255,0.08); display: none !important; }
+
+/* Also ensure tooltips inside sidebar/buttons are hidden to avoid duplicated labels */
+.sidenav .tooltip-content, .button .tooltip-content, .menu-item .tooltip-content { display: none !important; }
+
+
+/* ==========================================================
+   SCROLLBAR
+   ========================================================== */
+
+::-webkit-scrollbar{ height:10px; width:10px }
+::-webkit-scrollbar-thumb{ background: linear-gradient(180deg,var(--neon-pink),var(--neon-cyan)); border-radius:8px }
+
+
+/* ==========================================================
+   ANIMATION
+   ========================================================== */
+
+/* Subtle animated neon accent */
+@keyframes neonPulse{
+    0%{ box-shadow: 0 0 6px rgba(0,230,255,0.04) }
+    50%{ box-shadow: 0 0 20px rgba(255,0,204,0.06) }
+    100%{ box-shadow: 0 0 6px rgba(0,230,255,0.04) }
+}
+.neon{ animation: neonPulse 3s infinite alternate }
+
+
+/* ==========================================================
+   ACCESSIBILITY
+   ========================================================== */
+
+/* Accessibility: ensure contrast on small text */
+small, sub, sup{ color: #b9d1dd }
+
+
+/* ==========================================================
+   MOBILE
+   ========================================================== */
+
+/* Small screens */
+@media only screen and (max-width:700px){
+    .sidenav{ position:relative; width:100%; height:auto }
+    #main{ margin-left:0 }
+    body{ padding:16px }
+    body>#content{ padding:16px }
+}
+
+
+/* ==========================================================
+   PRINT
+   ========================================================== */
+
+/* Print layout: let WeasyPrint paginate the document instead of sizing it like a viewport. */
+@media print {
+    html,
+    body {
+        height: auto;
+        min-height: 0;
+    }
+
+    body {
+        padding: 10px;
+    }
+
+    .sidenav,
+    .openButton {
+        position: static;
+        width: auto;
+        height: auto;
+        margin: 0;
+        overflow: visible;
+    }
+
+    #main {
+        margin-left: 0;
+    }
+
+    pre,
+    table {
+        overflow: visible;
+    }
+
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+}
