@@ -4,9 +4,12 @@ import markdown
 DEFAULT_PDF_MARGIN_MM = 5
 
 
+def render_body_html(markdown_text: str) -> str:
+    return markdown.markdown(markdown_text, extensions=["extra", "sane_lists"])
+
+
 def render_html(markdown_text: str, css_href: str | None = None, margin_mm: int = DEFAULT_PDF_MARGIN_MM) -> str:
-    body = markdown.markdown(markdown_text, extensions=["extra", "sane_lists"])
-    return _wrap_document(body, css_href=css_href, margin_mm=margin_mm)
+    return _wrap_document(render_body_html(markdown_text), css_href=css_href, margin_mm=margin_mm)
 
 
 def render_pages_html(
@@ -17,89 +20,30 @@ def render_pages_html(
     """Render multiple markdown documents, forcing each one onto its own PDF page."""
     pages = []
     for index, markdown_text in enumerate(markdown_texts):
-        page_body = markdown.markdown(markdown_text, extensions=["extra", "sane_lists"])
         break_style = "" if index == 0 else " style=\"page-break-before: always;\""
-        pages.append(f"<div{break_style}>{page_body}</div>")
+        pages.append(f"<div{break_style}>{render_body_html(markdown_text)}</div>")
     return _wrap_document("\n".join(pages), css_href=css_href, margin_mm=margin_mm)
+
+
+def render_shell_html(css_href: str | None = None, margin_mm: int = DEFAULT_PDF_MARGIN_MM) -> str:
+    """A static page with an empty content placeholder, meant to be loaded once and then
+    patched in place (via JS) as the user types, to avoid reload flicker in the live preview."""
+    # A non-zero top padding stops the first heading's top margin from collapsing through
+    # #md-content (which would otherwise clip its top when scrolled to the very top), and
+    # padding-bottom adds breathing room at the end, since this is a screen preview, not print.
+    spacer_style = "<style>#md-content { padding-top: 1em; padding-bottom: 8em; }</style>"
+    return _wrap_document(
+        f'<div id="md-content"></div>{spacer_style}', css_href=css_href, margin_mm=margin_mm
+    )
 
 
 def _wrap_document(body: str, css_href: str | None = None, margin_mm: int = DEFAULT_PDF_MARGIN_MM) -> str:
     page_style = f"<style>@page {{ margin: {margin_mm}mm; }}</style>"
     css_link = f'<link rel="stylesheet" href="{css_href}">' if css_href else ""
     image_style = "<style>img { max-width: 100%; height: auto; }</style>"
-    scroll_state_script = """
-<script>
-(function () {
-    const key = "markdown_studio_preview_scroll";
-
-    function getMaxX() {
-        return Math.max(0, document.documentElement.scrollWidth - window.innerWidth);
-    }
-
-    function getMaxY() {
-        return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-    }
-
-    function clamp(value, min, max) {
-        return Math.min(max, Math.max(min, value));
-    }
-
-    function restoreScroll() {
-        try {
-            const saved = sessionStorage.getItem(key);
-            if (!saved) return;
-            const state = JSON.parse(saved);
-            requestAnimationFrame(() => requestAnimationFrame(() => {
-                const maxX = getMaxX();
-                const maxY = getMaxY();
-
-                const hasRelative = Number.isFinite(state.xr) || Number.isFinite(state.yr);
-                if (hasRelative) {
-                    const xr = Number.isFinite(state.xr) ? clamp(state.xr, 0, 1) : 0;
-                    const yr = Number.isFinite(state.yr) ? clamp(state.yr, 0, 1) : 0;
-                    window.scrollTo(xr * maxX, yr * maxY);
-                    return;
-                }
-
-                // Backward-compatible fallback for older absolute snapshots.
-                const x = Number.isFinite(state.x) ? clamp(state.x, 0, maxX) : 0;
-                const y = Number.isFinite(state.y) ? clamp(state.y, 0, maxY) : 0;
-                window.scrollTo(x, y);
-            }));
-        } catch (_err) {
-            // Ignore malformed state and continue rendering.
-        }
-    }
-
-    function saveScroll() {
-        try {
-            const maxX = getMaxX();
-            const maxY = getMaxY();
-            const xr = maxX > 0 ? window.scrollX / maxX : 0;
-            const yr = maxY > 0 ? window.scrollY / maxY : 0;
-            sessionStorage.setItem(
-                key,
-                JSON.stringify({
-                    xr: clamp(xr, 0, 1),
-                    yr: clamp(yr, 0, 1),
-                    // Keep absolute values too in case relative data is unavailable.
-                    x: window.scrollX,
-                    y: window.scrollY,
-                })
-            );
-        } catch (_err) {
-            // Ignore storage errors and continue rendering.
-        }
-    }
-
-    window.addEventListener("beforeunload", saveScroll);
-    window.addEventListener("DOMContentLoaded", restoreScroll);
-})();
-</script>
-"""
     return f"""<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8">{page_style}{css_link}{image_style}{scroll_state_script}</head>
+<head><meta charset="utf-8">{page_style}{css_link}{image_style}</head>
 <body>
 {body}
 </body>

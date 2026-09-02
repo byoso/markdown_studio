@@ -417,6 +417,10 @@ img {
    ========================================================== */
 
 @media print {
+    @page {
+        padding: 40px;
+    }
+
     html,
     body {
         height: auto;

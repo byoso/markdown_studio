@@ -4,7 +4,6 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
-import time
 from pathlib import Path
 
 import gi
@@ -14,7 +13,7 @@ from gi.repository import Gtk as gtk, Gdk, Gio, GLib
 from . import pdf_export
 from .editor import MarkdownEditor
 from .file_tree import FileTree
-from .markdown_renderer import render_html
+from .markdown_renderer import render_body_html
 from .preview import PreviewPane
 from .project import Project, parse_order_prefix, set_order_prefix
 
@@ -59,9 +58,9 @@ class MainWindow(gtk.Window):
         paned.pack2(right_box, resize=True, shrink=False)
 
         editor_toolbar = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=4)
-        save_button = gtk.Button(label="Save")
+        save_button = gtk.Button(label="Save all")
         save_button.get_style_context().add_class("save-button")
-        save_button.connect("clicked", self._on_save_clicked)
+        save_button.connect("clicked", self._on_save_all_clicked)
         export_file_button = gtk.Button(label="Export this file to PDF")
         export_file_button.get_style_context().add_class("export-button")
         export_file_button.connect("clicked", self._on_export_file_clicked)
@@ -75,6 +74,17 @@ class MainWindow(gtk.Window):
         editor_toolbar.pack_start(export_file_button, False, False, 0)
         editor_toolbar.pack_start(export_project_button, False, False, 0)
         editor_toolbar.pack_start(export_madoc_button, False, False, 0)
+
+        self.sync_toggle = gtk.ToggleButton(label="sync")
+        self.sync_toggle.get_style_context().add_class("line-numbers-toggle")
+        self.sync_toggle.set_tooltip_text("Sync editor/preview scroll position")
+        editor_toolbar.pack_end(self.sync_toggle, False, False, 0)
+
+        self.line_numbers_toggle = gtk.ToggleButton(label="num")
+        self.line_numbers_toggle.get_style_context().add_class("line-numbers-toggle")
+        self.line_numbers_toggle.set_tooltip_text("Toggle line numbers")
+        self.line_numbers_toggle.connect("toggled", self._on_toggle_line_numbers)
+        editor_toolbar.pack_end(self.line_numbers_toggle, False, False, 0)
 
         self.preview_toggle = gtk.ToggleButton()
         self.preview_toggle.get_style_context().add_class("preview-toggle")
@@ -100,20 +110,29 @@ class MainWindow(gtk.Window):
         self.preview.set_size_request(300, -1)
         content_paned.pack2(self.preview, resize=True, shrink=False)
 
-        self.editor.buffer.connect("changed", lambda _b: self._refresh_preview())
+        self.editor.connect("buffer-changed", lambda _e: self._refresh_preview())
+        self.editor.connect("modified-changed", self._on_editor_modified_changed)
+        self.editor.connect("scrolled", self._on_editor_scrolled)
+        self.preview.connect("scrolled", self._on_preview_scrolled)
+        self._last_synced_scroll_percent = 0.0
 
         self.preview_toggle.set_active(True)
+        self.line_numbers_toggle.set_active(True)
+        self.sync_toggle.set_active(True)
 
         self.connect("key-press-event", self._on_key_press)
 
     def change_project(self, project_path: str | Path) -> None:
         self.project = Project.load(project_path)
         self.file_tree.set_root_path(self.project.path)
-        self.editor.current_path = None
-        self.editor.buffer.set_text("")
+        self.editor.reset()
+        self._last_markdown_path = None
         self.editor.set_font_size(self.project.get_font_size())
         self.subtitle_label.set_text(self._header_subtitle())
         self._refresh_preview()
+
+    def _on_editor_modified_changed(self, _editor, path: str, modified: bool) -> None:
+        self.file_tree.set_modified(Path(path), modified)
 
     @staticmethod
     def _load_app_css() -> None:
@@ -201,13 +220,14 @@ class MainWindow(gtk.Window):
         if self.editor.current_path is not None and str(self.editor.current_path) == file_path:
             return
         self.editor.load_file(file_path)
+        self._refresh_preview()
 
     def _on_refresh_clicked(self, _button) -> None:
         self.file_tree.refresh()
         self._refresh_preview()
 
-    def _on_save_clicked(self, _button) -> None:
-        self.editor.save()
+    def _on_save_all_clicked(self, _button) -> None:
+        self.editor.save_all()
         self._flash_save_indicator()
 
     def _on_toggle_preview(self, button: gtk.ToggleButton) -> None:
@@ -217,31 +237,66 @@ class MainWindow(gtk.Window):
         else:
             self.preview.hide()
 
+    def _on_toggle_line_numbers(self, button: gtk.ToggleButton) -> None:
+        self.editor.set_show_line_numbers(button.get_active())
+
+    def _on_editor_scrolled(self, _editor) -> None:
+        if not self.sync_toggle.get_active():
+            return
+        percent = self.editor.get_scroll_percent()
+        # Ignore echoes of a sync we just applied, to avoid bouncing between editor and preview.
+        if abs(percent - self._last_synced_scroll_percent) < 0.002:
+            return
+        self._last_synced_scroll_percent = percent
+        self.preview.scroll_to_percent(percent)
+
+    def _on_preview_scrolled(self, _preview, percent: float) -> None:
+        if not self.sync_toggle.get_active():
+            return
+        if abs(percent - self._last_synced_scroll_percent) < 0.002:
+            return
+        self._last_synced_scroll_percent = percent
+        self.editor.set_scroll_percent(percent)
+
     def _refresh_preview(self) -> None:
         if not self.preview_toggle.get_active():
             return
-        if self.editor.current_path is not None and self.editor.current_path.suffix.lower() == ".md":
-            self._last_markdown_path = self.editor.current_path
+        current_path = self.editor.current_path
+        if current_path is not None and current_path.suffix.lower() == ".md":
+            is_new_file = self._last_markdown_path != current_path
+            self._last_markdown_path = current_path
             markdown_text = self.editor.get_text()
+            follow_bottom = self.editor.is_cursor_near_end()
         elif self._last_markdown_path is not None:
-            markdown_text = self._last_markdown_path.read_text(encoding="utf-8")
+            try:
+                markdown_text = self._last_markdown_path.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                # Stale reference (e.g. the file was renamed/reordered); drop it and skip this refresh.
+                self._last_markdown_path = None
+                return
+            is_new_file = False
+            follow_bottom = False
         else:
             return
-        css_href = self.project.get_css_relative_path()
-        if css_href:
-            # Bust WebKit's resource cache so on-disk CSS edits show up immediately.
-            css_href = f"{css_href}?t={time.time()}"
-        html = render_html(
-            markdown_text,
-            css_href=css_href,
-            margin_mm=self.project.get_pdf_margin_mm(),
+        is_css_edit = current_path is not None and current_path.suffix.lower() == ".css"
+        self.preview.refresh(
+            self.project.get_css_relative_path(),
+            self.project.get_pdf_margin_mm(),
+            self.project.path,
+            render_body_html(markdown_text),
+            reset_scroll=is_new_file,
+            follow_bottom=follow_bottom,
+            force_reload=is_css_edit,
         )
-        self.preview.load_html(html, self.project.path)
 
     def _on_key_press(self, _widget, event) -> bool:
         if event.keyval == Gdk.KEY_s and event.state & Gdk.ModifierType.CONTROL_MASK:
             self.editor.save()
             self._flash_save_indicator()
+            return True
+        if event.keyval == Gdk.KEY_z and event.state & Gdk.ModifierType.CONTROL_MASK:
+            if self.editor.buffer.can_undo():
+                self.editor.buffer.undo()
             return True
         if event.keyval == Gdk.KEY_y and event.state & Gdk.ModifierType.CONTROL_MASK:
             if self.editor.buffer.can_redo():

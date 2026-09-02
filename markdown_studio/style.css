@@ -55,7 +55,8 @@
 	background-color: #3a6a8a;
 }
 
-.preview-toggle {
+.preview-toggle,
+.line-numbers-toggle {
 	background-image: none;
 	background-color: transparent;
 	border: 1px solid #c8d6cb;
@@ -63,7 +64,8 @@
 	padding: 4px 8px;
 }
 
-.preview-toggle:checked {
+.preview-toggle:checked,
+.line-numbers-toggle:checked {
 	background-color: #26c465;
 	border-color: #0e6f34;
 }

@@ -6,7 +6,7 @@ from pathlib import Path
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("GtkSource", "4")
-from gi.repository import Gtk as gtk, Gdk, GLib, GtkSource, Pango
+from gi.repository import Gtk as gtk, Gdk, GLib, GObject, GtkSource, Pango
 
 # Map file extensions to GtkSourceView language ids.
 _LANGUAGE_IDS = {
@@ -16,16 +16,26 @@ _LANGUAGE_IDS = {
 
 
 class MarkdownEditor(gtk.Box):
+    __gsignals__ = {
+        # Fired whenever the visible buffer's text changes (used to refresh the preview).
+        "buffer-changed": (GObject.SignalFlags.RUN_FIRST, None, ()),
+        # Fired whenever a file's unsaved-changes state changes: (path str, is_modified bool).
+        "modified-changed": (GObject.SignalFlags.RUN_FIRST, None, (str, bool)),
+        # Fired whenever the editor is scrolled (used to sync the preview's scroll position).
+        "scrolled": (GObject.SignalFlags.RUN_FIRST, None, ()),
+    }
+
     def __init__(self):
         super().__init__(orientation=gtk.Orientation.VERTICAL)
         self.current_path: Path | None = None
         self._language_manager = GtkSource.LanguageManager.get_default()
+        self._style_scheme = GtkSource.StyleSchemeManager.get_default().get_scheme("solarized-dark")
 
+        # Placeholder buffer shown before any file is opened.
         self.buffer = GtkSource.Buffer()
         self.buffer.set_highlight_syntax(True)
-        style_scheme = GtkSource.StyleSchemeManager.get_default().get_scheme("solarized-dark")
-        if style_scheme is not None:
-            self.buffer.set_style_scheme(style_scheme)
+        if self._style_scheme is not None:
+            self.buffer.set_style_scheme(self._style_scheme)
 
         self.text_view = GtkSource.View.new_with_buffer(self.buffer)
         self.text_view.set_wrap_mode(gtk.WrapMode.WORD)
@@ -38,8 +48,12 @@ class MarkdownEditor(gtk.Box):
         self.scrolled_window = gtk.ScrolledWindow()
         self.scrolled_window.add(self.text_view)
         self.pack_start(self.scrolled_window, True, True, 0)
+        self.scrolled_window.get_vadjustment().connect("value-changed", lambda _a: self.emit("scrolled"))
 
         self._scroll_positions: dict[Path, float] = {}
+        # One GtkSource.Buffer per file, kept alive for the session so each file has
+        # its own undo/redo history and unsaved edits survive switching files.
+        self._buffers: dict[Path, GtkSource.Buffer] = {}
 
         self.search_settings = GtkSource.SearchSettings()
         self.search_settings.set_wrap_around(True)
@@ -141,24 +155,49 @@ class MarkdownEditor(gtk.Box):
     def set_font_size(self, size: int) -> None:
         self.text_view.override_font(Pango.FontDescription(str(size)))
 
+    def set_show_line_numbers(self, show: bool) -> None:
+        self.text_view.set_show_line_numbers(show)
+
     def load_file(self, path: str | Path) -> bool:
         path = Path(path)
-        try:
-            text = path.read_text(encoding="utf-8")
-        except FileNotFoundError:
-            # Stale selection (e.g. the file was just renamed/reordered); ignore it.
-            return False
+        if path not in self._buffers:
+            try:
+                text = path.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                # Stale selection (e.g. the file was just renamed/reordered); ignore it.
+                return False
+            self._buffers[path] = self._create_buffer(path, text)
         self._remember_scroll_position()
         self.current_path = path
-        self.buffer.set_language(self._guess_language(self.current_path))
-        # Loading a different file must not be undoable, and must not let
-        # ctrl+z reach back into the previous file's undo history.
-        self.buffer.begin_not_undoable_action()
-        self.buffer.set_text(text)
-        self.buffer.end_not_undoable_action()
+        self.buffer = self._buffers[path]
+        self.text_view.set_buffer(self.buffer)
+        # Each buffer needs its own search context since GtkSource.SearchContext is tied to one buffer.
+        self.search_context = GtkSource.SearchContext.new(self.buffer, self.search_settings)
+        self.search_context.set_highlight(True)
+        self.search_context.connect("notify::occurrences-count", lambda *_a: self._update_match_count())
         self._search_from_start()
         self._restore_scroll_position(path)
         return True
+
+    def _create_buffer(self, path: Path, text: str) -> GtkSource.Buffer:
+        buffer = GtkSource.Buffer()
+        buffer.set_highlight_syntax(True)
+        if self._style_scheme is not None:
+            buffer.set_style_scheme(self._style_scheme)
+        buffer.set_language(self._guess_language(path))
+        # Loading the initial content must not be undoable.
+        buffer.begin_not_undoable_action()
+        buffer.set_text(text)
+        buffer.end_not_undoable_action()
+        buffer.set_modified(False)
+        buffer.connect("changed", lambda _b: self.emit("buffer-changed"))
+        buffer.connect("modified-changed", lambda b: self.emit("modified-changed", str(path), b.get_modified()))
+        return buffer
+
+    def is_cursor_near_end(self, lines: int = 2) -> bool:
+        """Whether the caret sits within the last few lines, used to auto-follow the preview."""
+        cursor_line = self.buffer.get_iter_at_mark(self.buffer.get_insert()).get_line()
+        return cursor_line >= self.buffer.get_end_iter().get_line() - lines
 
     def _remember_scroll_position(self) -> None:
         if self.current_path is not None:
@@ -181,6 +220,16 @@ class MarkdownEditor(gtk.Box):
         language_id = _LANGUAGE_IDS.get(path.suffix.lower())
         return self._language_manager.get_language(language_id) if language_id else None
 
+    def get_scroll_percent(self) -> float:
+        adjustment = self.scrolled_window.get_vadjustment()
+        max_value = max(1.0, adjustment.get_upper() - adjustment.get_page_size())
+        return min(1.0, max(0.0, adjustment.get_value() / max_value))
+
+    def set_scroll_percent(self, percent: float) -> None:
+        adjustment = self.scrolled_window.get_vadjustment()
+        max_value = max(0.0, adjustment.get_upper() - adjustment.get_page_size())
+        adjustment.set_value(percent * max_value)
+
     def get_text(self) -> str:
         start, end = self.buffer.get_bounds()
         return self.buffer.get_text(start, end, True)
@@ -189,3 +238,26 @@ class MarkdownEditor(gtk.Box):
         if self.current_path is None:
             return
         self.current_path.write_text(self.get_text(), encoding="utf-8")
+        self.buffer.set_modified(False)
+
+    def save_all(self) -> None:
+        for path, buffer in self._buffers.items():
+            if not buffer.get_modified():
+                continue
+            start, end = buffer.get_bounds()
+            path.write_text(buffer.get_text(start, end, True), encoding="utf-8")
+            buffer.set_modified(False)
+
+    def reset(self) -> None:
+        """Discard all open files' buffers, e.g. when switching to a different project."""
+        self.current_path = None
+        self._buffers.clear()
+        self._scroll_positions.clear()
+        self.buffer = GtkSource.Buffer()
+        self.buffer.set_highlight_syntax(True)
+        if self._style_scheme is not None:
+            self.buffer.set_style_scheme(self._style_scheme)
+        self.text_view.set_buffer(self.buffer)
+        self.search_context = GtkSource.SearchContext.new(self.buffer, self.search_settings)
+        self.search_context.set_highlight(True)
+        self.search_context.connect("notify::occurrences-count", lambda *_a: self._update_match_count())

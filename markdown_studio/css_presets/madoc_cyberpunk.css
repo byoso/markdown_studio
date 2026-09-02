@@ -324,6 +324,10 @@ small, sub, sup{ color: #b9d1dd }
    ========================================================== */
 
 @media print {
+    @page {
+        padding: 40px;
+    }
+
     html,
     body {
         height: auto;

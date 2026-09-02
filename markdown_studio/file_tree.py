@@ -22,6 +22,7 @@ class FileTree(gtk.Box):
     def __init__(self, root_path: str | Path):
         super().__init__(orientation=gtk.Orientation.VERTICAL)
         self.root_path = Path(root_path)
+        self._modified_paths: set[str] = set()
 
         toolbar = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=4)
         up_button = gtk.Button(label="\u25b2")
@@ -67,24 +68,36 @@ class FileTree(gtk.Box):
     def _reselect(self, target: Path) -> None:
         """Restore the selection after a rebuild, so refresh never silently
         jumps to a different file (and its editor buffer/undo history)."""
-        target_str = str(target)
-
-        def find(parent_iter):
-            child_iter = self.store.iter_children(parent_iter)
-            while child_iter is not None:
-                if self.store[child_iter][self.COL_PATH] == target_str:
-                    return child_iter
-                if self.store[child_iter][self.COL_IS_DIR]:
-                    found = find(child_iter)
-                    if found is not None:
-                        return found
-                child_iter = self.store.iter_next(child_iter)
-            return None
-
-        found_iter = find(None)
+        found_iter = self._find_iter(str(target))
         if found_iter is not None:
             self.tree_view.get_selection().select_iter(found_iter)
             self.tree_view.scroll_to_cell(self.store.get_path(found_iter))
+
+    def _find_iter(self, target_str: str, parent_iter=None):
+        child_iter = self.store.iter_children(parent_iter)
+        while child_iter is not None:
+            if self.store[child_iter][self.COL_PATH] == target_str:
+                return child_iter
+            if self.store[child_iter][self.COL_IS_DIR]:
+                found = self._find_iter(target_str, child_iter)
+                if found is not None:
+                    return found
+            child_iter = self.store.iter_next(child_iter)
+        return None
+
+    def set_modified(self, path: Path, modified: bool) -> None:
+        """Show/hide the unsaved-changes marker ('*') next to a file's name."""
+        path_str = str(path)
+        if modified:
+            self._modified_paths.add(path_str)
+        else:
+            self._modified_paths.discard(path_str)
+        tree_iter = self._find_iter(path_str)
+        if tree_iter is not None:
+            self.store[tree_iter][self.COL_NAME] = self._display_name(path.name, path_str)
+
+    def _display_name(self, name: str, path_str: str) -> str:
+        return f"{name} *" if path_str in self._modified_paths else name
 
     def set_root_path(self, root_path: str | Path) -> None:
         self.root_path = Path(root_path)
@@ -98,7 +111,9 @@ class FileTree(gtk.Box):
         for entry in entries:
             if entry.name.startswith("."):
                 continue
-            tree_iter = self.store.append(parent_iter, [entry.name, str(entry), entry.is_dir()])
+            tree_iter = self.store.append(
+                parent_iter, [self._display_name(entry.name, str(entry)), str(entry), entry.is_dir()]
+            )
             if entry.is_dir():
                 self._populate(entry, tree_iter)
 
