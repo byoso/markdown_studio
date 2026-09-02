@@ -103,7 +103,7 @@ class PreviewPane(gtk.Box):
             self._pending_call = None
 
     def _on_scroll_message(self, _content_manager, js_value) -> None:
-        self.emit("scrolled", js_value.to_double())
+        self.emit("scrolled", js_value.get_js_value().to_double())
 
     def scroll_to_percent(self, percent: float) -> None:
         script = f"window.scrollTo(0, {percent} * Math.max(1, document.body.scrollHeight - window.innerHeight));"

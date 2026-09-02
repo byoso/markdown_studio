@@ -14,6 +14,11 @@ _LANGUAGE_IDS = {
     ".css": "css",
 }
 
+table_pattern = """
+| title | title |
+| --- | --- |
+| 1 | 2 |
+"""
 
 class MarkdownEditor(gtk.Box):
     __gsignals__ = {
@@ -45,6 +50,8 @@ class MarkdownEditor(gtk.Box):
         self.text_view.set_bottom_margin(5)
         self.set_font_size(15)
 
+        self.pack_start(self._build_markdown_toolbar(), False, False, 0)
+
         self.scrolled_window = gtk.ScrolledWindow()
         self.scrolled_window.add(self.text_view)
         self.pack_start(self.scrolled_window, True, True, 0)
@@ -62,6 +69,43 @@ class MarkdownEditor(gtk.Box):
         self.search_context.connect("notify::occurrences-count", lambda *_a: self._update_match_count())
 
         self.pack_start(self._build_search_bar(), False, False, 0)
+
+    def _build_markdown_toolbar(self) -> gtk.Box:
+        toolbar = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=4)
+        toolbar.get_style_context().add_class("markdown-toolbar")
+
+        page_break_button = gtk.Button(label="+break")
+        page_break_button.set_tooltip_text("Insert a page break")
+        page_break_button.connect("clicked", lambda _button: self.insert_page_break())
+        toolbar.pack_start(page_break_button, False, False, 4)
+
+        table_button = gtk.Button(label="+table")
+        table_button.set_tooltip_text("Insert a Markdown table row")
+        table_button.connect("clicked", lambda _button: self.insert_table_row())
+        toolbar.pack_start(table_button, False, False, 0)
+
+        return toolbar
+
+    def insert_page_break(self) -> None:
+        marker = "<!-- md:page-break -->"
+        bounds = self.buffer.get_selection_bounds()
+        if bounds:
+            start, end = bounds
+            self.buffer.delete(start, end)
+            cursor = start
+        else:
+            cursor = self.buffer.get_iter_at_mark(self.buffer.get_insert())
+
+        line_start = cursor.copy()
+        line_start.set_line_offset(0)
+        line_end = cursor.copy()
+        line_end.forward_to_line_end()
+        prefix = "" if cursor.equal(line_start) else "\n"
+        suffix = "" if cursor.equal(line_end) else "\n"
+        self.buffer.insert(cursor, f"{prefix}{marker}{suffix}")
+
+    def insert_table_row(self) -> None:
+        self.buffer.insert_at_cursor(table_pattern)
 
     def _build_search_bar(self) -> gtk.Box:
         search_bar = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=4)

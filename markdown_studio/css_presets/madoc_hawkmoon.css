@@ -558,8 +558,12 @@ img {
    ========================================================== */
 
 @media print {
+    .page-break {
+        break-before: page;
+        page-break-before: always;
+    }
     @page {
-        padding: 40px;
+        padding: 20px;
     }
 
     html,

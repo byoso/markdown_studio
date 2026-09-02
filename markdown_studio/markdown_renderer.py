@@ -1,10 +1,14 @@
 """Markdown -> HTML rendering, optionally linking a project stylesheet."""
+import re
+
 import markdown
 
 DEFAULT_PDF_MARGIN_MM = 5
+PAGE_BREAK_MARKER = re.compile(r"^\s*<!--\s*md:page-break\s*-->\s*$", re.MULTILINE)
 
 
 def render_body_html(markdown_text: str) -> str:
+    markdown_text = PAGE_BREAK_MARKER.sub('<div class="page-break"></div>', markdown_text)
     return markdown.markdown(markdown_text, extensions=["extra", "sane_lists"])
 
 

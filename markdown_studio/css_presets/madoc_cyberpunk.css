@@ -324,8 +324,12 @@ small, sub, sup{ color: #b9d1dd }
    ========================================================== */
 
 @media print {
+    .page-break {
+        break-before: page;
+        page-break-before: always;
+    }
     @page {
-        padding: 40px;
+        padding: 20px;
     }
 
     html,
