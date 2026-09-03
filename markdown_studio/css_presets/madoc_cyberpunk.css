@@ -329,7 +329,8 @@ small, sub, sup{ color: #b9d1dd }
         page-break-before: always;
     }
     @page {
-        padding: 20px;
+        padding: 20mm;
+        margin: 0mm;
     }
 
     html,

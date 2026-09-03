@@ -95,7 +95,7 @@ class Project:
         self._update_settings(css_path=rel)
 
     DEFAULT_FONT_SIZE = 15
-    DEFAULT_PDF_MARGIN_MM = 5
+    DEFAULT_SPELLCHECK_LANGUAGES = ["en"]
 
     def get_font_size(self) -> int:
         settings = self.db.collection(self.SETTINGS_COLLECTION).first()
@@ -106,14 +106,16 @@ class Project:
     def set_font_size(self, font_size: int) -> None:
         self._update_settings(font_size=font_size)
 
-    def get_pdf_margin_mm(self) -> int:
+    def get_spellcheck_languages(self) -> list[str]:
         settings = self.db.collection(self.SETTINGS_COLLECTION).first()
         if settings is None:
-            return self.DEFAULT_PDF_MARGIN_MM
-        return settings.data.get("pdf_margin_mm", self.DEFAULT_PDF_MARGIN_MM)
+            return self.DEFAULT_SPELLCHECK_LANGUAGES.copy()
+        languages = settings.data.get("spellcheck_languages", self.DEFAULT_SPELLCHECK_LANGUAGES)
+        return [language for language in languages if language in ("en", "fr")]
 
-    def set_pdf_margin_mm(self, margin_mm: int) -> None:
-        self._update_settings(pdf_margin_mm=margin_mm)
+    def set_spellcheck_languages(self, languages: list[str]) -> None:
+        selected = [language for language in ("en", "fr") if language in languages]
+        self._update_settings(spellcheck_languages=selected)
 
     def get_exports_dir(self) -> Path:
         """Return the project's PDF export folder, creating it if needed."""

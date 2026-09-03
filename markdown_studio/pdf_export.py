@@ -16,7 +16,6 @@ def export_single(project: Project, md_path: str | Path, pdf_path: str | Path | 
     html = render_html(
         md_path.read_text(encoding="utf-8"),
         css_href=project.get_css_relative_path(),
-        margin_mm=project.get_pdf_margin_mm(),
     )
     HTML(string=html, base_url=str(project.path)).write_pdf(str(pdf_path))
     return pdf_path
@@ -31,7 +30,6 @@ def export_project(project: Project, pdf_path: str | Path) -> Path:
     html = render_pages_html(
         markdown_texts,
         css_href=project.get_css_relative_path(),
-        margin_mm=project.get_pdf_margin_mm(),
     )
     HTML(string=html, base_url=str(project.path)).write_pdf(str(pdf_path))
     return pdf_path

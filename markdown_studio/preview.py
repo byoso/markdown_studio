@@ -51,25 +51,24 @@ class PreviewPane(gtk.Box):
     def refresh(
         self,
         css_href: str | None,
-        margin_mm: int,
         base_path: str | Path,
         body_html: str,
         reset_scroll: bool,
         follow_bottom: bool,
         force_reload: bool = False,
     ) -> None:
-        key = (css_href, margin_mm, str(base_path))
+        key = (css_href, str(base_path))
         if force_reload or key != self._loaded_key:
-            self._load_shell(css_href, margin_mm, base_path)
+            self._load_shell(css_href, base_path)
             self._loaded_key = key
             reset_scroll = True
         self.set_content(body_html, reset_scroll=reset_scroll, follow_bottom=follow_bottom)
 
-    def _load_shell(self, css_href: str | None, margin_mm: int, base_path: str | Path) -> None:
+    def _load_shell(self, css_href: str | None, base_path: str | Path) -> None:
         if css_href:
             # Bust WebKit's resource cache so on-disk CSS edits show up immediately.
             css_href = f"{css_href}?t={time.time()}"
-        html = render_shell_html(css_href=css_href, margin_mm=margin_mm)
+        html = render_shell_html(css_href=css_href)
         self._ready = False
         self.web_view.load_html(html, f"file://{base_path}/")
 

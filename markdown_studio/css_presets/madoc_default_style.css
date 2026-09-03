@@ -422,7 +422,8 @@ img {
         page-break-before: always;
     }
     @page {
-        padding: 20px;
+        padding: 20mm;
+        margin: 0mm;
     }
 
     html,

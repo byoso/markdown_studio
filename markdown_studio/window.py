@@ -10,12 +10,19 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk as gtk, Gdk, Gio, GLib
 
+from silly_engine.logger import Logger
+
 from . import pdf_export
 from .editor import MarkdownEditor
 from .file_tree import FileTree
-from .markdown_renderer import render_body_html
+from .html_preview import HTMLPreviewPane
+from .markdown_renderer import render_body_html, render_html
 from .preview import PreviewPane
 from .project import Project, parse_order_prefix, set_order_prefix
+from .settings import LOG_LEVEL
+
+
+logger = Logger(__name__, level=LOG_LEVEL)
 
 
 class MainWindow(gtk.Window):
@@ -25,6 +32,7 @@ class MainWindow(gtk.Window):
         self.set_default_size(900, 600)
         self.on_change_project = on_change_project
         self.project = Project.load(project_path)
+        self._refreshing_file_tree = False
 
         self._load_app_css()
         self.set_titlebar(self._build_header_bar())
@@ -80,6 +88,12 @@ class MainWindow(gtk.Window):
         self.sync_toggle.set_tooltip_text("Sync editor/preview scroll position")
         editor_toolbar.pack_end(self.sync_toggle, False, False, 0)
 
+        self.spellcheck_toggle = gtk.ToggleButton(label="orth")
+        self.spellcheck_toggle.get_style_context().add_class("line-numbers-toggle")
+        self.spellcheck_toggle.set_tooltip_text("Toggle spell checking")
+        self.spellcheck_toggle.connect("toggled", self._on_toggle_spellcheck)
+        editor_toolbar.pack_end(self.spellcheck_toggle, False, False, 0)
+
         self.line_numbers_toggle = gtk.ToggleButton(label="num")
         self.line_numbers_toggle.get_style_context().add_class("line-numbers-toggle")
         self.line_numbers_toggle.set_tooltip_text("Toggle line numbers")
@@ -102,23 +116,46 @@ class MainWindow(gtk.Window):
         self.editor = MarkdownEditor()
         self.editor.text_view.get_style_context().add_class("markdown-editor")
         self.editor.set_font_size(self.project.get_font_size())
+        self.editor.set_spellcheck_languages(self.project.get_spellcheck_languages())
         content_paned.pack1(self.editor, resize=True, shrink=False)
 
         self._last_markdown_path: Path | None = None
 
+        preview_container = gtk.Box(orientation=gtk.Orientation.VERTICAL)
+        preview_toolbar = gtk.Box(orientation=gtk.Orientation.HORIZONTAL, spacing=4)
+        preview_toolbar.set_border_width(4)
+        preview_toolbar.pack_start(gtk.Label(label="Preview:"), False, False, 0)
+        self.render_preview_radio = gtk.RadioButton.new_with_label(None, "Render")
+        self.html_preview_radio = gtk.RadioButton.new_with_label_from_widget(
+            self.render_preview_radio, "html",
+        )
+        self.render_preview_radio.connect("toggled", self._on_preview_mode_changed)
+        self.html_preview_radio.connect("toggled", self._on_preview_mode_changed)
+        preview_toolbar.pack_start(self.render_preview_radio, False, False, 0)
+        preview_toolbar.pack_start(self.html_preview_radio, False, False, 0)
+        preview_container.pack_start(preview_toolbar, False, False, 0)
+
+        self.preview_stack = gtk.Stack()
         self.preview = PreviewPane()
-        self.preview.set_size_request(300, -1)
-        content_paned.pack2(self.preview, resize=True, shrink=False)
+        self.html_preview = HTMLPreviewPane()
+        self.preview_stack.add_named(self.preview, "render")
+        self.preview_stack.add_named(self.html_preview, "html")
+        preview_container.pack_start(self.preview_stack, True, True, 0)
+        preview_container.set_size_request(300, -1)
+        content_paned.pack2(preview_container, resize=True, shrink=False)
 
         self.editor.connect("buffer-changed", lambda _e: self._refresh_preview())
         self.editor.connect("modified-changed", self._on_editor_modified_changed)
         self.editor.connect("scrolled", self._on_editor_scrolled)
         self.preview.connect("scrolled", self._on_preview_scrolled)
+        self.html_preview.connect("scrolled", self._on_preview_scrolled)
         self._last_synced_scroll_percent = 0.0
 
         self.preview_toggle.set_active(True)
         self.line_numbers_toggle.set_active(True)
+        self.html_preview.set_show_line_numbers(True)
         self.sync_toggle.set_active(True)
+        self.render_preview_radio.set_active(True)
 
         self.connect("key-press-event", self._on_key_press)
 
@@ -128,6 +165,7 @@ class MainWindow(gtk.Window):
         self.editor.reset()
         self._last_markdown_path = None
         self.editor.set_font_size(self.project.get_font_size())
+        self.editor.set_spellcheck_languages(self.project.get_spellcheck_languages())
         self.subtitle_label.set_text(self._header_subtitle())
         self._refresh_preview()
 
@@ -213,17 +251,27 @@ class MainWindow(gtk.Window):
         Gio.AppInfo.launch_default_for_uri(f"file://{path}")
 
     def _on_file_selected(self, _widget, file_path: str) -> None:
-        if not file_path.endswith((".md", ".css")):
+        if self._refreshing_file_tree:
             return
+        if self.editor.current_path is not None and str(self.editor.current_path) != file_path:
+            logger.debug(f"{self.editor.current_path} - out - scroll: {self.editor.get_scroll_percent()}")
+        self.editor.remember_current_scroll_position()
         # Rebuilding the file tree (e.g. on refresh) can re-fire this signal
         # for the file that is already open; reloading it would wipe undo history.
         if self.editor.current_path is not None and str(self.editor.current_path) == file_path:
             return
-        self.editor.load_file(file_path)
-        self._refresh_preview()
+        if self.editor.load_file(file_path):
+            self._refresh_preview()
 
     def _on_refresh_clicked(self, _button) -> None:
-        self.file_tree.refresh()
+        logger.debug("refresh")
+        self.editor.reload_files()
+        self._refreshing_file_tree = True
+        try:
+            self.file_tree.refresh()
+        finally:
+            self._refreshing_file_tree = False
+        self.editor.restore_current_scroll_position()
         self._refresh_preview()
 
     def _on_save_all_clicked(self, _button) -> None:
@@ -232,13 +280,24 @@ class MainWindow(gtk.Window):
 
     def _on_toggle_preview(self, button: gtk.ToggleButton) -> None:
         if button.get_active():
-            self.preview.show()
+            self.preview_stack.show()
             self._refresh_preview()
         else:
-            self.preview.hide()
+            self.preview_stack.hide()
+
+    def _on_preview_mode_changed(self, button: gtk.RadioButton) -> None:
+        if not button.get_active():
+            return
+        mode = "html" if button is self.html_preview_radio else "render"
+        self.preview_stack.set_visible_child_name(mode)
+        self._refresh_preview()
 
     def _on_toggle_line_numbers(self, button: gtk.ToggleButton) -> None:
         self.editor.set_show_line_numbers(button.get_active())
+        self.html_preview.set_show_line_numbers(button.get_active())
+
+    def _on_toggle_spellcheck(self, button: gtk.ToggleButton) -> None:
+        self.editor.set_spellcheck_enabled(button.get_active())
 
     def _on_editor_scrolled(self, _editor) -> None:
         if not self.sync_toggle.get_active():
@@ -248,7 +307,10 @@ class MainWindow(gtk.Window):
         if abs(percent - self._last_synced_scroll_percent) < 0.002:
             return
         self._last_synced_scroll_percent = percent
-        self.preview.scroll_to_percent(percent)
+        if self.html_preview_radio.get_active():
+            self.html_preview.set_scroll_percent(percent)
+        else:
+            self.preview.scroll_to_percent(percent)
 
     def _on_preview_scrolled(self, _preview, percent: float) -> None:
         if not self.sync_toggle.get_active():
@@ -279,11 +341,18 @@ class MainWindow(gtk.Window):
         else:
             return
         is_css_edit = current_path is not None and current_path.suffix.lower() == ".css"
+        css_href = self.project.get_css_relative_path()
+        body_html = render_body_html(markdown_text)
+        if self.html_preview_radio.get_active():
+            self.html_preview.set_html(
+                render_html(markdown_text, css_href=css_href),
+                reset_scroll=is_new_file,
+            )
+            return
         self.preview.refresh(
-            self.project.get_css_relative_path(),
-            self.project.get_pdf_margin_mm(),
+            css_href,
             self.project.path,
-            render_body_html(markdown_text),
+            body_html,
             reset_scroll=is_new_file,
             follow_bottom=follow_bottom,
             force_reload=is_css_edit,
@@ -351,10 +420,14 @@ class MainWindow(gtk.Window):
         font_size_spin.set_value(self.project.get_font_size())
         content.add(font_size_spin)
 
-        content.add(gtk.Label(label="PDF export margin (mm):", xalign=0))
-        pdf_margin_spin = gtk.SpinButton.new_with_range(0, 50, 1)
-        pdf_margin_spin.set_value(self.project.get_pdf_margin_mm())
-        content.add(pdf_margin_spin)
+        content.add(gtk.Label(label="Spellcheck languages:", xalign=0))
+        spellcheck_languages = self.project.get_spellcheck_languages()
+        english_check = gtk.CheckButton(label="eng")
+        english_check.set_active("en" in spellcheck_languages)
+        french_check = gtk.CheckButton(label="fr")
+        french_check.set_active("fr" in spellcheck_languages)
+        content.add(english_check)
+        content.add(french_check)
 
         dialog.show_all()
         response = dialog.run()
@@ -365,7 +438,14 @@ class MainWindow(gtk.Window):
             self.project.set_font_size(font_size_spin.get_value_as_int())
             self.editor.set_font_size(font_size_spin.get_value_as_int())
 
-            self.project.set_pdf_margin_mm(pdf_margin_spin.get_value_as_int())
+            selected_languages = []
+            if english_check.get_active():
+                selected_languages.append("en")
+            if french_check.get_active():
+                selected_languages.append("fr")
+            self.project.set_spellcheck_languages(selected_languages)
+            self.editor.set_spellcheck_languages(selected_languages)
+
             self._refresh_preview()
         dialog.destroy()
 
